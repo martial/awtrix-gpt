@@ -554,20 +554,28 @@ def create_app():
             ]
             anthropic = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
-            # Send prompt and photo to Claude AI
             response = anthropic.messages.create(
                 model="claude-3-5-sonnet-20241022",
                 max_tokens=1024,
                 messages=messages
             )
-            
+
             print(response)
-            # Extract and parse the response JSON
+
+            # Extract the JSON text from the response
             raw_text = response.content[0].text.strip()
-            cleaned_text = raw_text.replace('\n', '\\n').replace('\r', '').replace('\t', '\\t')  # Escape special characters
-            response_content = json.loads(cleaned_text)
-            print(response_content)
-            poem_text = response_content.get("result", "").strip()
+
+            try:
+                # Parse the inner JSON directly
+                response_content = json.loads(raw_text)
+                print(response_content)
+                
+                # Extract the poem text
+                poem_text = response_content.get("result", "").strip()
+                
+            except json.JSONDecodeError as e:
+                print(f"Error parsing JSON: {e}")
+                print(f"Raw text was: {raw_text}")
 
             # Print the photo and poem
             photo_path = "photo.jpg"  # Define a path for saving if required
