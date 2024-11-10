@@ -18,6 +18,8 @@ from thermalprinter import ThermalPrinter
 from anthropic import Anthropic
 import base64 
 import json
+import traceback
+
 load_dotenv()
 
 # Configure logging
@@ -584,6 +586,8 @@ def create_app():
 
         except Exception as e:
             logging.error(f"Error in /api/generate_poem_with_photo: {str(e)}")
+            logging.error("Error in /api/generate_poem_with_photo")
+            logging.error(traceback.format_exc())  # Log the full stack trace
             return jsonify({'status': 'error', 'message': str(e)}), 500
             
     return app
