@@ -1,0 +1,171 @@
+printer:
+  port: '/dev/tty.usbserial-31230'  # Update this to your printer port
+  baudrate: 9600
+  heat_time: 80
+  heat_dots: 7
+  heat_interval: 2
+  max_width: 384  # Standard width for many thermal printers
+  settings:
+    auto_feed: true
+    font_b: false
+    bold: false
+    underline: 0
+    justify: 'left'
+camera:
+  index: 0
+  name: Logitech C920
+  resolution:
+    height: 1080
+    width: 1920
+  settings:
+    photo_directory: ../photos
+colors:
+  activities: '#FFDAB9'
+  adjectives: '#1E90FF'
+  cities: '#00BFFF'
+  default: '#FFFFFF'
+  emotions: '#FF69B4'
+  names: '#FFA500'
+  numbers: '#FFD700'
+  units: '#32CD32'
+  weather: '#87CEEB'
+display:
+  active_hours:
+    end: 22
+    start: 6
+  cycle_delay: 5
+  debug: true
+  host: 192.168.1.101
+  message_duration: 15
+  update_interval: 3600
+time:
+  languages:
+    fr:
+      days:
+      - lundi
+      - mardi
+      - mercredi
+      - jeudi
+      - vendredi
+      - samedi
+      - dimanche
+      months:
+      - janvier
+      - fevrier
+      - mars
+      - avril
+      - mai
+      - juin
+      - juillet
+      - aout
+      - septembre
+      - octobre
+      - novembre
+      - decembre
+    it:
+      days:
+      - lunedi
+      - martedi
+      - mercoledi
+      - giovedi
+      - venerdi
+      - sabato
+      - domenica
+      months:
+      - gennaio
+      - febbraio
+      - marzo
+      - aprile
+      - maggio
+      - giugno
+      - luglio
+      - agosto
+      - settembre
+      - ottobre
+      - novembre
+      - dicembre
+weather:
+  cities:
+    AMANTEA:
+      language: it
+      lat: 39.1328
+      lon: 16.0803
+      name: Amantea
+    LYON:
+      language: fr
+      lat: 45.764
+      lon: 4.8357
+      name: Lyon
+words:
+  activities:
+  - moto
+  - velo
+  - jeep
+  - pasta
+  - jocteur
+  - pomodorino
+  - spritz
+  - aperitif
+  - cafe
+  - caffe
+  adjectives:
+  - lyonnais
+  - lyonnaise
+  - calabrese
+  - italien
+  - francais
+  - bella
+  - bello
+  cities:
+  - lyon
+  - amantea
+  - saint
+  - rambert
+  - genas
+  - portofino
+  - cap ferret
+  - preignac
+  - bordeaux
+  - biarritz
+  emotions:
+  - amour
+  - love
+  - joie
+  - bonheur
+  - rire
+  - amore
+  - felicita
+  names:
+  - elisa
+  - martial
+  - marziol
+  - gisa
+  - betty
+  - elisabetta
+  - grasso
+  - grassa
+  - elisabetta
+  - chantal
+  units:
+  - c
+  - m/s
+  - hpa
+  - '%'
+  - km
+  - meters
+  - degres
+  - metres
+  - graso
+  weather:
+  - nuages
+  - vent
+  - pluie
+  - soleil
+  - orage
+  - brume
+  - neige
+  - tempete
+  - sole
+  - pioggia
+  - vento
+  - nebbia
