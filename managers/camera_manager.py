@@ -22,6 +22,7 @@ class CameraManager:
 
         self.camera: Optional[cv2.VideoCapture] = None
         self.lock = threading.Lock()
+        self.is_initialized = False  # Flag to track initialization status
         
         # Create photos directory
         self.photos_dir = os.path.join(os.path.dirname(__file__), 
@@ -31,46 +32,18 @@ class CameraManager:
         # Initialize camera
         self.initialize_camera()
 
-    def list_available_cameras(self):
-        """List all available cameras"""
-        available_cameras = []
-        max_cameras_to_check = 10  # Adjust this number if needed
-        
-        for index in range(max_cameras_to_check):
-            cap = cv2.VideoCapture(index)
-            if cap.isOpened():
-                try:
-                    backend = cap.getBackendName()
-                    name = f"Camera {index}"
-                    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                    fps = int(cap.get(cv2.CAP_PROP_FPS))
-                    available_cameras.append({
-                        'index': index,
-                        'name': name,
-                        'backend': backend,
-                        'resolution': f"{width}x{height}",
-                        'fps': fps
-                    })
-                except:
-                    available_cameras.append({
-                        'index': index,
-                        'name': f"Camera {index}",
-                        'backend': 'Unknown',
-                        'resolution': 'Unknown',
-                        'fps': 'Unknown'
-                    })
-                cap.release()
-                
-        return available_cameras
-    
     def initialize_camera(self):
         """Initialize the camera with specified settings"""
         with self.lock:
+            if self.is_initialized:
+                self.logger.info("Camera is already initialized.")
+                return  # Avoid reinitializing if already done
+            
             try:
                 if self.camera is not None:
                     self.camera.release()
                 
+                # Initialize new camera
                 self.camera = cv2.VideoCapture(self.config['camera']['index'])
                 time.sleep(2)  # Wait for camera to initialize
                 
@@ -88,18 +61,21 @@ class CameraManager:
                 if not ret:
                     raise Exception("Camera initialized but failed to capture test frame")
                 
+                self.is_initialized = True  # Set the flag to True after successful initialization
+                
             except Exception as e:
                 self.logger.error(f"Error initializing camera: {str(e)}")
                 if self.camera is not None:
                     self.camera.release()
                     self.camera = None
+                self.is_initialized = False  # Reset flag on failure
                 raise
 
     def take_picture(self, filename: Optional[str] = None) -> Optional[str]:
         """Take a picture and save it to file"""
         with self.lock:
             try:
-                if not self.camera or not self.camera.isOpened():
+                if not self.is_initialized:
                     self.initialize_camera()
 
                 # Read a frame
@@ -129,7 +105,7 @@ class CameraManager:
         """Get a single frame as JPEG bytes for preview"""
         with self.lock:
             try:
-                if not self.camera or not self.camera.isOpened():
+                if not self.is_initialized:
                     self.initialize_camera()
 
                 ret, frame = self.camera.read()
@@ -144,59 +120,13 @@ class CameraManager:
                 self.logger.error(f"Error getting preview frame: {str(e)}")
                 return None
 
-    def adjust_settings(self, brightness: Optional[int] = None, 
-                       contrast: Optional[int] = None,
-                       saturation: Optional[int] = None,
-                       exposure: Optional[int] = None):
-        """Adjust camera settings"""
-        with self.lock:
-            try:
-                if not self.camera or not self.camera.isOpened():
-                    self.initialize_camera()
-
-                if brightness is not None:
-                    self.camera.set(cv2.CAP_PROP_BRIGHTNESS, brightness)
-                if contrast is not None:
-                    self.camera.set(cv2.CAP_PROP_CONTRAST, contrast)
-                if saturation is not None:
-                    self.camera.set(cv2.CAP_PROP_SATURATION, saturation)
-                if exposure is not None:
-                    self.camera.set(cv2.CAP_PROP_EXPOSURE, exposure)
-
-                self.logger.info("Camera settings adjusted")
-
-            except Exception as e:
-                self.logger.error(f"Error adjusting camera settings: {str(e)}")
-
-    def get_current_settings(self) -> dict:
-        """Get current camera settings"""
-        with self.lock:
-            try:
-                if not self.camera or not self.camera.isOpened():
-                    self.initialize_camera()
-
-                settings = {
-                    'brightness': self.camera.get(cv2.CAP_PROP_BRIGHTNESS),
-                    'contrast': self.camera.get(cv2.CAP_PROP_CONTRAST),
-                    'saturation': self.camera.get(cv2.CAP_PROP_SATURATION),
-                    'exposure': self.camera.get(cv2.CAP_PROP_EXPOSURE),
-                    'resolution': {
-                        'width': self.camera.get(cv2.CAP_PROP_FRAME_WIDTH),
-                        'height': self.camera.get(cv2.CAP_PROP_FRAME_HEIGHT)
-                    }
-                }
-                return settings
-
-            except Exception as e:
-                self.logger.error(f"Error getting camera settings: {str(e)}")
-                return {}
-
     def close(self):
         """Properly close the camera"""
         with self.lock:
             if self.camera is not None:
                 self.camera.release()
                 self.camera = None
+                self.is_initialized = False  # Reset flag when camera is released
                 self.logger.info("Camera released")
                 
     def __del__(self):
