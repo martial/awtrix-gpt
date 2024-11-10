@@ -561,6 +561,7 @@ def create_app():
                 messages=messages
             )
             
+            print(response)
             # Extract and parse the response JSON
             response_content = json.loads(response.content[0].text.strip())
             print(response_content)
