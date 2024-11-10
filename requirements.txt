@@ -10,3 +10,4 @@ click>=8.0.0
 pyyaml
 opencv-python
 pillow
+thermalprinter

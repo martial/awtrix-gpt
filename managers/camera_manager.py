@@ -5,7 +5,8 @@ from datetime import datetime
 from typing import Optional, Tuple
 import threading
 import time
-import yaml 
+import yaml
+
 class CameraManager:
     def __init__(self):
         """Initialize camera manager"""
@@ -38,17 +39,12 @@ class CameraManager:
         for index in range(max_cameras_to_check):
             cap = cv2.VideoCapture(index)
             if cap.isOpened():
-                # Try to get camera name/info
                 try:
-                    # Get camera backend-specific properties
                     backend = cap.getBackendName()
                     name = f"Camera {index}"
-                    
-                    # Try to get more details if possible
                     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                     fps = int(cap.get(cv2.CAP_PROP_FPS))
-                    
                     available_cameras.append({
                         'index': index,
                         'name': name,
@@ -64,7 +60,6 @@ class CameraManager:
                         'resolution': 'Unknown',
                         'fps': 'Unknown'
                     })
-                    
                 cap.release()
                 
         return available_cameras
@@ -73,28 +68,22 @@ class CameraManager:
         """Initialize the camera with specified settings"""
         with self.lock:
             try:
-                # Close existing camera if any
                 if self.camera is not None:
                     self.camera.release()
                 
-                # Initialize new camera
                 self.camera = cv2.VideoCapture(self.config['camera']['index'])
+                time.sleep(2)  # Wait for camera to initialize
                 
                 if not self.camera.isOpened():
                     raise Exception(f"Failed to open camera at index {self.config['camera']['index']}")
-                
-                # Set resolution
-                self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, 
-                              self.config['camera']['resolution']['width'])
-                self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 
-                              self.config['camera']['resolution']['height'])
-                
-                # Set autofocus
-                self.camera.set(cv2.CAP_PROP_AUTOFOCUS, 1)
-                
+
+                # Set default resolution if specified
+                width = self.config['camera']['resolution'].get('width', 640)
+                height = self.config['camera']['resolution'].get('height', 480)
+                self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+                self.camera.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+
                 self.logger.info(f"Camera initialized: index {self.config['camera']['index']}")
-                
-                # Verify camera is working by taking a test frame
                 ret, _ = self.camera.read()
                 if not ret:
                     raise Exception("Camera initialized but failed to capture test frame")
@@ -108,25 +97,19 @@ class CameraManager:
 
     def take_picture(self, filename: Optional[str] = None) -> Optional[str]:
         """Take a picture and save it to file"""
-        with self.lock:  # Ensure thread safety
+        with self.lock:
             try:
                 if not self.camera or not self.camera.isOpened():
                     self.initialize_camera()
 
-                # Read a frame
                 ret, frame = self.camera.read()
                 if not ret:
                     raise Exception("Failed to capture frame")
 
-                # Generate filename if not provided
                 if filename is None:
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     filename = f"photo_{timestamp}.jpg"
-
-                # Full path for the file
                 filepath = os.path.join(self.photos_dir, filename)
-
-                # Save the image
                 cv2.imwrite(filepath, frame)
                 self.logger.info(f"Picture saved to {filepath}")
 
@@ -147,7 +130,6 @@ class CameraManager:
                 if not ret:
                     raise Exception("Failed to capture preview frame")
 
-                # Encode frame as JPEG
                 _, buffer = cv2.imencode('.jpg', frame)
                 return buffer.tobytes()
 
