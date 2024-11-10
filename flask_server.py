@@ -563,6 +563,7 @@ def create_app():
             
             # Extract and parse the response JSON
             response_content = json.loads(response.content[0].text.strip())
+            print(response_content)
             poem_text = response_content.get("result", "").strip()
 
             # Print the photo and poem
