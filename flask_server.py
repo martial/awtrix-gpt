@@ -570,6 +570,7 @@ def create_app():
             # Normalize newlines
             cleaned_text = cleaned_text.replace('\r\n', '\n').replace('\r', '\n')
 
+            poem_text = ""
             try:
                 # Parse the cleaned JSON
                 response_content = json.loads(cleaned_text)
