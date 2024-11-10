@@ -563,7 +563,9 @@ def create_app():
             
             print(response)
             # Extract and parse the response JSON
-            response_content = json.loads(response.content[0].text.strip())
+            raw_text = response.content[0].text.strip()
+            cleaned_text = raw_text.replace('\n', '\\n').replace('\r', '').replace('\t', '\\t')  # Escape special characters
+            response_content = json.loads(cleaned_text)
             print(response_content)
             poem_text = response_content.get("result", "").strip()
 
