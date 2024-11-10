@@ -562,12 +562,17 @@ def create_app():
 
             print(response)
 
-            # Extract the JSON text from the response
+            # Extract the text and handle control characters
             raw_text = response.content[0].text.strip()
 
+            # Remove all control characters and normalize newlines
+            cleaned_text = ''.join(char if ord(char) >= 32 or char in ['\n', '\r', '\t'] else '' for char in raw_text)
+            # Normalize newlines
+            cleaned_text = cleaned_text.replace('\r\n', '\n').replace('\r', '\n')
+
             try:
-                # Parse the inner JSON directly
-                response_content = json.loads(raw_text)
+                # Parse the cleaned JSON
+                response_content = json.loads(cleaned_text)
                 print(response_content)
                 
                 # Extract the poem text
@@ -575,7 +580,7 @@ def create_app():
                 
             except json.JSONDecodeError as e:
                 print(f"Error parsing JSON: {e}")
-                print(f"Raw text was: {raw_text}")
+            print(f"Cleaned text was: {cleaned_text}")
 
             # Print the photo and poem
             photo_path = "photo.jpg"  # Define a path for saving if required
