@@ -102,14 +102,20 @@ class CameraManager:
                 if not self.camera or not self.camera.isOpened():
                     self.initialize_camera()
 
+                # Read a frame
                 ret, frame = self.camera.read()
-                if not ret:
-                    raise Exception("Failed to capture frame")
+                if not ret or frame is None:
+                    raise Exception("Failed to capture frame.")
 
+                # Generate filename if not provided
                 if filename is None:
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     filename = f"photo_{timestamp}.jpg"
+
+                # Full path for the file
                 filepath = os.path.join(self.photos_dir, filename)
+
+                # Save the image
                 cv2.imwrite(filepath, frame)
                 self.logger.info(f"Picture saved to {filepath}")
 
@@ -127,9 +133,10 @@ class CameraManager:
                     self.initialize_camera()
 
                 ret, frame = self.camera.read()
-                if not ret:
-                    raise Exception("Failed to capture preview frame")
+                if not ret or frame is None:
+                    raise Exception("Failed to capture preview frame.")
 
+                # Encode frame as JPEG
                 _, buffer = cv2.imencode('.jpg', frame)
                 return buffer.tobytes()
 
