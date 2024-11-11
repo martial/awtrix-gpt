@@ -20,6 +20,8 @@ class ThermalPrinterManager:
 
         self.printer: Optional[ThermalPrinter] = None
         self.initialize_printer()
+        ThermalPrinter.inverse(True)
+        ThermalPrinter.bold(True)
 
     def initialize_printer(self):
         """Initialize the thermal printer with specified settings"""
@@ -48,7 +50,7 @@ class ThermalPrinterManager:
                 ratio = max_width / img.width
                 new_height = int(img.height * ratio)
                 img = img.resize((max_width, new_height))
-                img = img.rotate(180)
+                #img = img.rotate(180)
                 # Print the image
                 self.printer.image(img)
                 self.printer.feed(2)  # Feed 2 lines after printing
@@ -59,9 +61,10 @@ class ThermalPrinterManager:
             self.logger.error(f"Error printing image: {str(e)}")
             return False
 
-    def print_text(self, text: str, feed=3) -> bool:
+    def print_text(self, text: str, feed=1) -> bool:
         """Print text"""
-        try:
+        try:    
+            
             self.printer.out(text, strike=True, underline=2, inverse= True,  bold=True)
             self.printer.feed(feed)
             return True
