@@ -547,18 +547,15 @@ def create_app():
 
         def wrap_and_reverse_text(text, max_width=32):
             """Wrap text and reverse the order of lines"""
-            # First split into lines if there are line breaks
             paragraphs = text.split('\n')
             all_wrapped_lines = []
             
             for paragraph in paragraphs:
-                # Split into words
                 words = paragraph.split()
                 lines = []
                 current_line = []
                 current_length = 0
 
-                # Wrap into lines of max_width
                 for word in words:
                     word_length = len(word)
                     if current_length + word_length + len(current_line) <= max_width:
@@ -566,7 +563,6 @@ def create_app():
                         current_length += word_length
                     else:
                         if current_line:
-                            # Join words
                             line = ' '.join(current_line)
                             lines.append(line)
                         current_line = [word]
@@ -578,9 +574,55 @@ def create_app():
 
                 all_wrapped_lines.extend(lines)
 
-            # Reverse the order of all lines and join them
             all_wrapped_lines.reverse()
             return '\n'.join(all_wrapped_lines)
+
+        def add_text_to_image(image_bytes, poem_text):
+            """Add poem text to the bottom of the rotated image"""
+            from PIL import Image, ImageDraw, ImageFont
+            import io
+
+            # Open the image
+            image = Image.open(io.BytesIO(image_bytes))
+            
+            # Rotate the image 180 degrees
+            image = image.rotate(180)
+            
+            # Calculate the space needed for text
+            margin = 20
+            font_size = 20
+            try:
+                font = ImageFont.truetype("DejaVuSans.ttf", font_size)
+            except:
+                font = ImageFont.load_default()
+                
+            # Calculate text height
+            lines = poem_text.split('\n')
+            text_height = len(lines) * (font_size + 5)  # 5 pixels between lines
+            
+            # Create new image with extra space for text
+            new_height = image.height + text_height + (2 * margin)
+            new_image = Image.new('RGB', (image.width, new_height), 'white')
+            
+            # Paste the rotated original image
+            new_image.paste(image, (0, 0))
+            
+            # Add text
+            draw = ImageDraw.Draw(new_image)
+            y = image.height + margin
+            for line in lines:
+                # Center the text
+                text_width = draw.textlength(line, font=font)
+                x = (image.width - text_width) // 2
+                draw.text((x, y), line, fill='black', font=font)
+                y += font_size + 5
+
+            # Convert back to bytes
+            img_byte_arr = io.BytesIO()
+            new_image.save(img_byte_arr, format='JPEG')
+            img_byte_arr.seek(0)
+            
+            return img_byte_arr.getvalue()
 
         try:
             # Capture a photo
@@ -604,7 +646,7 @@ def create_app():
             original_bytes = io.BytesIO(original_frame)
 
             image_data_base64 = base64.b64encode(original_bytes.getvalue()).decode('utf-8')
-            image_media_type = 'image/jpeg'  # Specify media type
+            image_media_type = 'image/jpeg'
 
             # Prepare the messages payload
             messages = [
@@ -633,8 +675,6 @@ def create_app():
                 max_tokens=1024,
                 messages=messages
             )
-
-            print(response)
 
             # Extract and parse response
             raw_text = response.content[0].text.strip()
@@ -669,8 +709,6 @@ def create_app():
                 timestamp = f"{french_date} à {french_time}"
                 response_content['timestamp'] = timestamp
                 
-              
-                
                 # Wrap and reverse all text content
                 timestamp_formatted = wrap_and_reverse_text(timestamp)
                 description_formatted = wrap_and_reverse_text(response_content.get("description", ""))
@@ -687,10 +725,14 @@ def create_app():
                 printer_manager.print_text(description_formatted + "\n", 0)
                 printer_manager.print_text(timestamp_formatted, 0)
                 printer_manager.print_text("\n")
-                # Send photo back to user
+
+                # Process the image with the poem
                 photo_bytes.seek(0)
+                processed_image = add_text_to_image(photo_bytes.getvalue(), response_content['result'])
+
+                # Send processed photo back to user
                 return send_file(
-                    io.BytesIO(photo_bytes.getvalue()),
+                    io.BytesIO(processed_image),
                     mimetype='image/jpeg',
                     as_attachment=True,
                     download_name="photo_with_poem.jpg"
@@ -704,8 +746,9 @@ def create_app():
         except Exception as e:
             logging.error(f"Error in /api/generate_poem_with_photo: {str(e)}")
             logging.error("Error in /api/generate_poem_with_photo")
-            logging.error(traceback.format_exc())  # Log the full stack trace
+            logging.error(traceback.format_exc())
             return jsonify({'status': 'error', 'message': str(e)}), 500
+    
     return app
 
 def main():
