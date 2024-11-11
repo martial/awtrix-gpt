@@ -520,7 +520,7 @@ def create_app():
 
         1. Return a JSON object with three keys:
         - "result": the poem (Italian or French)
-        - "description": a scene description in French (max 3 lines) about:
+        - "description": a scene description in French (max 3 lines of 32 chars) about:
             * Room ambiance and lighting
             * Order/disorder level
             * Presence of people/objects
@@ -670,15 +670,15 @@ def create_app():
                 poem_formatted = wrap_and_reverse_text(response_content.get("result", ""))
                 
                 # Print everything
+                printer_manager.printer.justify("C")
+                printer_manager.printer.bold(False)
+                printer_manager.print_text("----------", 2)
+                printer_manager.print_image(photo_path)
                 printer_manager.printer.bold(True)
                 printer_manager.printer.justify("L")
-                printer_manager.print_text(timestamp_formatted + "\n\n", 0)
-                printer_manager.print_text(description_formatted + "\n\n")
-                printer_manager.print_text(poem_formatted)
-                printer_manager.print_image(photo_path)
-                printer_manager.printer.bold(False)
-                printer_manager.printer.justify("C")
-                printer_manager.print_text("----------", 2)
+                printer_manager.print_text(poem_formatted + "\n\n", 0)
+                printer_manager.print_text(description_formatted + "\n\n", 0)
+                printer_manager.print_text(timestamp_formatted, 0)
 
                 # Send photo back to user
                 photo_bytes.seek(0)
