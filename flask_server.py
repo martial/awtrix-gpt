@@ -545,10 +545,10 @@ def create_app():
         """
 
         def wrap_and_reverse_text(text, max_width=32):
-            """Wrap text and reverse each line"""
+            """Wrap text and reverse the order of lines"""
             # First split into lines if there are line breaks
             paragraphs = text.split('\n')
-            wrapped_reversed_lines = []
+            all_wrapped_lines = []
             
             for paragraph in paragraphs:
                 # Split into words
@@ -565,19 +565,21 @@ def create_app():
                         current_length += word_length
                     else:
                         if current_line:
-                            # Join words and reverse the line
+                            # Join words
                             line = ' '.join(current_line)
-                            lines.append(line[::-1])  # Reverse the characters in the line
+                            lines.append(line)
                         current_line = [word]
                         current_length = word_length
 
                 if current_line:
                     line = ' '.join(current_line)
-                    lines.append(line[::-1])  # Reverse the characters in the line
+                    lines.append(line)
 
-                wrapped_reversed_lines.extend(lines)
+                all_wrapped_lines.extend(lines)
 
-            return '\n'.join(wrapped_reversed_lines)
+            # Reverse the order of all lines and join them
+            all_wrapped_lines.reverse()
+            return '\n'.join(all_wrapped_lines)
 
         try:
             # Capture a photo
