@@ -65,7 +65,7 @@ class ThermalPrinterManager:
         """Print text"""
         try:    
             
-            self.printer.out(text, strike=True, underline=2, inverse= True,  bold=True)
+            self.printer.out(text, strike=True, underline=2,  bold=True)
             self.printer.feed(feed)
             return True
         except Exception as e:
