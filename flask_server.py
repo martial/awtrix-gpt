@@ -578,7 +578,7 @@ def create_app():
             return '\n'.join(all_wrapped_lines)
 
         def add_text_to_image(image_bytes, poem_text):
-            """Add poem text to the bottom of the rotated image"""
+            """Add poem text to the bottom of the rotated image with larger text"""
             from PIL import Image, ImageDraw, ImageFont
             import io
 
@@ -589,8 +589,8 @@ def create_app():
             image = image.rotate(180)
             
             # Calculate the space needed for text
-            margin = 20
-            font_size = 20
+            margin = 40  # Increased margin for better spacing
+            font_size = 36  # Increased font size
             try:
                 font = ImageFont.truetype("DejaVuSans.ttf", font_size)
             except:
@@ -598,7 +598,8 @@ def create_app():
                 
             # Calculate text height
             lines = poem_text.split('\n')
-            text_height = len(lines) * (font_size + 5)  # 5 pixels between lines
+            line_spacing = 10  # Increased line spacing
+            text_height = len(lines) * (font_size + line_spacing)
             
             # Create new image with extra space for text
             new_height = image.height + text_height + (2 * margin)
@@ -610,16 +611,25 @@ def create_app():
             # Add text
             draw = ImageDraw.Draw(new_image)
             y = image.height + margin
+            
+            # Try to load a bold version of the font for better visibility
+            try:
+                bold_font = ImageFont.truetype("DejaVuSans-Bold.ttf", font_size)
+            except:
+                bold_font = font
+            
             for line in lines:
                 # Center the text
-                text_width = draw.textlength(line, font=font)
+                text_width = draw.textlength(line, font=bold_font)
                 x = (image.width - text_width) // 2
-                draw.text((x, y), line, fill='black', font=font)
-                y += font_size + 5
+                # Draw with a light shadow for better readability
+                draw.text((x+2, y+2), line, fill='gray', font=bold_font)  # Shadow
+                draw.text((x, y), line, fill='black', font=bold_font)  # Main text
+                y += font_size + line_spacing
 
             # Convert back to bytes
             img_byte_arr = io.BytesIO()
-            new_image.save(img_byte_arr, format='JPEG')
+            new_image.save(img_byte_arr, format='JPEG', quality=95)  # Increased quality
             img_byte_arr.seek(0)
             
             return img_byte_arr.getvalue()
