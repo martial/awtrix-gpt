@@ -511,7 +511,7 @@ def create_app():
                 'status': 'error',
                 'message': str(e)
             }), 500
-   
+    
     @app.route('/api/generate_poem_with_photo', methods=['POST', 'GET'])
     def generate_poem_with_photo():
         """Take a photo, generate a poem with Claude AI, and print both."""
@@ -543,6 +543,41 @@ def create_app():
 
         Do not use markdown or other formatting.
         """
+
+        def wrap_and_reverse_text(text, max_width=32):
+            """Wrap text and reverse each line"""
+            # First split into lines if there are line breaks
+            paragraphs = text.split('\n')
+            wrapped_reversed_lines = []
+            
+            for paragraph in paragraphs:
+                # Split into words
+                words = paragraph.split()
+                lines = []
+                current_line = []
+                current_length = 0
+
+                # Wrap into lines of max_width
+                for word in words:
+                    word_length = len(word)
+                    if current_length + word_length + len(current_line) <= max_width:
+                        current_line.append(word)
+                        current_length += word_length
+                    else:
+                        if current_line:
+                            # Join words and reverse the line
+                            line = ' '.join(current_line)
+                            lines.append(line[::-1])  # Reverse the characters in the line
+                        current_line = [word]
+                        current_length = word_length
+
+                if current_line:
+                    line = ' '.join(current_line)
+                    lines.append(line[::-1])  # Reverse the characters in the line
+
+                wrapped_reversed_lines.extend(lines)
+
+            return '\n'.join(wrapped_reversed_lines)
 
         try:
             # Capture a photo
@@ -627,14 +662,17 @@ def create_app():
                 with open(photo_path, 'wb') as photo_file:
                     photo_file.write(photo_bytes.getvalue())
                 
-                # Print formatted output
+                # Wrap and reverse all text content
+                timestamp_formatted = wrap_and_reverse_text(timestamp)
+                description_formatted = wrap_and_reverse_text(response_content.get("description", ""))
+                poem_formatted = wrap_and_reverse_text(response_content.get("result", ""))
+                
+                # Print everything
                 printer_manager.printer.bold(True)
                 printer_manager.printer.justify("L")
-                printer_manager.print_text(timestamp + "\n\n")  # Print timestamp
-                printer_manager.print_text(response_content.get("description", "") + "\n\n")
-                printer_manager.print_text("\n")
-                printer_manager.print_text(response_content.get("result", ""))
-                
+                printer_manager.print_text(timestamp_formatted + "\n\n", 0)
+                printer_manager.print_text(description_formatted + "\n\n")
+                printer_manager.print_text(poem_formatted)
                 printer_manager.print_image(photo_path)
                 printer_manager.printer.bold(False)
                 printer_manager.printer.justify("C")
@@ -646,7 +684,7 @@ def create_app():
                     io.BytesIO(photo_bytes.getvalue()),
                     mimetype='image/jpeg',
                     as_attachment=True,
-                    download_name="photo_with_poem.jpg"  # use download_name instead of attachment_filename
+                    download_name="photo_with_poem.jpg"
                 )
 
             except json.JSONDecodeError as e:
