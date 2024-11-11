@@ -32,6 +32,20 @@ class CameraManager:
         # Initialize camera
         self.initialize_camera()
 
+    def list_available_cameras():
+        available_cameras = []
+        for i in range(10):
+            try:
+                cap = cv2.VideoCapture(i)
+                if cap.isOpened():
+                    available_cameras.append(i)
+                cap.release()
+            except:
+                pass
+        return available_cameras
+
+    print(f"Available cameras: {list_available_cameras()}")
+
     def initialize_camera(self):
         """Initialize the camera with specified settings"""
         with self.lock:
