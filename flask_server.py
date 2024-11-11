@@ -523,6 +523,7 @@ def create_app():
         4. Write in either French or Italian
         5. Focus on the main subject or action in the photo, try to describe a little
         6. Return ONLY a JSON object with the poem with this exact format: {"result": poem}
+        7. Use \n for line break.
         Do not not use markdown.
         """
 
@@ -596,9 +597,14 @@ def create_app():
                 photo_file.write(photo_bytes.getvalue())
             
             # Print the photo and text
-            printer_manager.print_text("----------", 1)
-            printer_manager.print_image(photo_path)
+            printer_manager.printer.bold(True)
+            printer_manager.printer.justify("L")
             printer_manager.print_text(poem_text)
+            printer_manager.print_image(photo_path)
+            printer_manager.printer.bold(False)
+            printer_manager.printer.justify("C")
+            printer_manager.print_text("----------", 2)
+            
 
             # Send photo back to user
             photo_bytes.seek(0)
