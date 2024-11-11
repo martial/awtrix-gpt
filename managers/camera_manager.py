@@ -32,6 +32,7 @@ class CameraManager:
         # Initialize camera
         self.initialize_camera()
 
+    @staticmethod
     def list_available_cameras():
         available_cameras = []
         for i in range(10):
