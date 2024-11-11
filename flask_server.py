@@ -534,7 +534,6 @@ def create_app():
         
         # Capture a photo
             frame = camera_manager.get_preview_frame()
-            frame = camera_manager.get_preview_frame()
             if not frame:
                 return jsonify({'status': 'error', 'message': 'Failed to capture photo'}), 500
 
