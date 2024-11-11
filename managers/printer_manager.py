@@ -20,7 +20,7 @@ class ThermalPrinterManager:
 
         self.printer: Optional[ThermalPrinter] = None
         self.initialize_printer()
-        self.printer.inverse(True)
+        self.printer.inverse(False)
         self.printer.bold(True)
         self.printer.upside_down(True)
 

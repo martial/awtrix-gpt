@@ -511,28 +511,45 @@ def create_app():
                 'status': 'error',
                 'message': str(e)
             }), 500
-        
+   
     @app.route('/api/generate_poem_with_photo', methods=['POST', 'GET'])
     def generate_poem_with_photo():
         """Take a photo, generate a poem with Claude AI, and print both."""
         prompt_text = """
-        Looking at this photo, create a short poem following these rules:
-        1. Maximum 8 lines
-        2. If there is a man in the photo, refer to him as "Marziol"
-        3. If there is a woman in the photo, refer to her as "Elisa"
-        4. Write in either French or Italian
-        5. Focus on the main subject or action in the photo, try to describe a little
-        6. Return ONLY a JSON object with the poem with this exact format: {"result": poem}
-        7. Use \n for line break.
-        Do not not use markdown.
+        Looking at this photo, analyze the scene and create a response following these rules:
+
+        1. Return a JSON object with three keys:
+        - "result": the poem (Italian or French)
+        - "description": a scene description in French (max 3 lines) about:
+            * Room ambiance and lighting
+            * Order/disorder level
+            * Presence of people/objects
+            * General atmosphere
+        - "timestamp": current time in French format (leave this empty, code will fill it)
+        
+        Poem rules:
+        - Maximum 8 lines
+        - Maximum 32 characters per line
+        - If there is a man, refer to him as "Marziol"
+        - If there is a woman, refer to him as "Elisa"
+        - Use \\n for line breaks
+        
+        Return exact format:
+        {
+            "result": "poem here with\\nline breaks",
+            "description": "French description here\\nwith line breaks if needed",
+            "timestamp": ""
+        }
+
+        Do not use markdown or other formatting.
         """
 
         try:
             # Capture a photo
             camera_manager.camera.read()  # Clear any stale frame
             time.sleep(0.2)  # Small delay to ensure fresh frame
-        
-        # Capture a photo
+            
+            # Capture a photo
             frame = camera_manager.get_preview_frame()
             if not frame:
                 return jsonify({'status': 'error', 'message': 'Failed to capture photo'}), 500
@@ -572,54 +589,76 @@ def create_app():
 
             print(response)
 
-            # Extract the text and handle control characters
+            # Extract and parse response
             raw_text = response.content[0].text.strip()
-
             
-
-            poem_text = ""
             try:
-                # Parse the cleaned JSON
+                # Parse the JSON response
                 response_content = json.loads(raw_text)
-                print(response_content)
                 
-                # Extract the poem text
-                poem_text = response_content.get("result", "").strip()
+                # Add timestamp in French format
+                current_time = datetime.now()
+                french_date = current_time.strftime("%A %d %B %Y").lower()
+                french_time = current_time.strftime("%H:%M")
                 
+                # Translate day and month to French
+                french_days = {
+                    'monday': 'lundi', 'tuesday': 'mardi', 'wednesday': 'mercredi',
+                    'thursday': 'jeudi', 'friday': 'vendredi', 'saturday': 'samedi', 
+                    'sunday': 'dimanche'
+                }
+                french_months = {
+                    'january': 'janvier', 'february': 'février', 'march': 'mars',
+                    'april': 'avril', 'may': 'mai', 'june': 'juin',
+                    'july': 'juillet', 'august': 'août', 'september': 'septembre',
+                    'october': 'octobre', 'november': 'novembre', 'december': 'décembre'
+                }
+                
+                for eng, fr in french_days.items():
+                    french_date = french_date.replace(eng, fr)
+                for eng, fr in french_months.items():
+                    french_date = french_date.replace(eng, fr)
+                
+                timestamp = f"{french_date} à {french_time}"
+                response_content['timestamp'] = timestamp
+                
+                # Format the output for printing
+                photo_path = "photo.jpg"
+                with open(photo_path, 'wb') as photo_file:
+                    photo_file.write(photo_bytes.getvalue())
+                
+                # Print formatted output
+                printer_manager.printer.bold(True)
+                printer_manager.printer.justify("L")
+                printer_manager.print_text(timestamp + "\n\n")  # Print timestamp
+                printer_manager.print_text(response_content.get("description", "") + "\n\n")
+                printer_manager.print_text("\n")
+                printer_manager.print_text(response_content.get("result", ""))
+                
+                printer_manager.print_image(photo_path)
+                printer_manager.printer.bold(False)
+                printer_manager.printer.justify("C")
+                printer_manager.print_text("----------", 2)
+
+                # Send photo back to user
+                photo_bytes.seek(0)
+                return send_file(
+                    io.BytesIO(photo_bytes.getvalue()),
+                    mimetype='image/jpeg',
+                    as_attachment=True,
+                    download_name="photo_with_poem.jpg"  # use download_name instead of attachment_filename
+                )
+
             except json.JSONDecodeError as e:
                 print(f"Error parsing JSON: {e}")
-            print(f"Cleaned text was: {raw_text}")
-
-            # Print the photo and poem
-            photo_path = "photo.jpg"  # Define a path for saving if required
-            with open(photo_path, 'wb') as photo_file:
-                photo_file.write(photo_bytes.getvalue())
-            
-            # Print the photo and text
-            printer_manager.printer.bold(True)
-            printer_manager.printer.justify("L")
-            printer_manager.print_text(poem_text)
-            printer_manager.print_image(photo_path)
-            printer_manager.printer.bold(False)
-            printer_manager.printer.justify("C")
-            printer_manager.print_text("----------", 2)
-            
-
-            # Send photo back to user
-            photo_bytes.seek(0)
-            return send_file(
-                io.BytesIO(photo_bytes.getvalue()),
-                mimetype='image/jpeg',
-                as_attachment=True,
-                download_name="photo_with_poem.jpg"  # use download_name instead of attachment_filename
-            )
+                print(f"Raw text was: {raw_text}")
+                return jsonify({'status': 'error', 'message': f'JSON parsing error: {str(e)}'}), 500
 
         except Exception as e:
             logging.error(f"Error in /api/generate_poem_with_photo: {str(e)}")
             logging.error("Error in /api/generate_poem_with_photo")
             logging.error(traceback.format_exc())  # Log the full stack trace
             return jsonify({'status': 'error', 'message': str(e)}), 500
-            
     return app
 
 def main():
