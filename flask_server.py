@@ -588,13 +588,22 @@ def create_app():
             time.sleep(0.2)  # Small delay to ensure fresh frame
             
             # Capture a photo
-            frame = camera_manager.get_preview_frame()
-            if not frame:
+            original_frame, threshold_frame = camera_manager.get_preview_frame()
+            if not original_frame or not threshold_frame:
                 return jsonify({'status': 'error', 'message': 'Failed to capture photo'}), 500
 
-            # Encode photo to Base64
-            photo_bytes = io.BytesIO(frame)
-            image_data_base64 = base64.b64encode(photo_bytes.getvalue()).decode('utf-8')
+            # Save both images
+            with open("photo.jpg", 'wb') as photo_file:
+                photo_file.write(threshold_frame)  # Save thresholded version for printing
+                
+            with open("photo_original.jpg", 'wb') as photo_file:
+                photo_file.write(original_frame)  # Save original for reference
+
+            # Create bytes objects for both images
+            photo_bytes = io.BytesIO(threshold_frame)
+            original_bytes = io.BytesIO(original_frame)
+
+            image_data_base64 = base64.b64encode(original_bytes.getvalue()).decode('utf-8')
             image_media_type = 'image/jpeg'  # Specify media type
 
             # Prepare the messages payload
@@ -660,10 +669,7 @@ def create_app():
                 timestamp = f"{french_date} à {french_time}"
                 response_content['timestamp'] = timestamp
                 
-                # Format the output for printing
-                photo_path = "photo.jpg"
-                with open(photo_path, 'wb') as photo_file:
-                    photo_file.write(photo_bytes.getvalue())
+              
                 
                 # Wrap and reverse all text content
                 timestamp_formatted = wrap_and_reverse_text(timestamp)
@@ -674,7 +680,7 @@ def create_app():
                 printer_manager.printer.justify("C")
                 printer_manager.printer.bold(False)
                 printer_manager.print_text("----------", 2)
-                printer_manager.print_image(photo_path)
+                printer_manager.print_image("photo.jpg")
                 printer_manager.printer.bold(False)
                 printer_manager.printer.justify("L")
                 printer_manager.print_text(poem_formatted + "\n", 0)
