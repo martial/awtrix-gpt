@@ -22,6 +22,7 @@ class ThermalPrinterManager:
         self.initialize_printer()
         ThermalPrinter.inverse(True)
         ThermalPrinter.bold(True)
+        ThermalPrinter.upside_down(True)
 
     def initialize_printer(self):
         """Initialize the thermal printer with specified settings"""
