@@ -62,7 +62,7 @@ class ThermalPrinterManager:
             self.logger.error(f"Error printing image: {str(e)}")
             return False
 
-    def print_text(self, text: str, feed=1) -> bool:
+    def print_text(self, text: str, feed=2) -> bool:
         """Print text"""
         try:    
             
