@@ -101,6 +101,7 @@ class CameraManager:
                 self.logger.error(f"Error taking picture: {str(e)}")
                 return None
 
+        # In camera_manager.py (CameraManager class)
     def get_preview_frame(self) -> Optional[bytes]:
         """Get a single frame as JPEG bytes for preview"""
         with self.lock:
@@ -108,12 +109,49 @@ class CameraManager:
                 if not self.is_initialized:
                     self.initialize_camera()
 
+                # Add buffer clearing loop
+                for _ in range(5):  # Flush the buffer by reading a few frames
+                    self.camera.read()
+                    
                 ret, frame = self.camera.read()
                 if not ret or frame is None:
                     raise Exception("Failed to capture preview frame.")
 
-                # Encode frame as JPEG
-                _, buffer = cv2.imencode('.jpg', frame)
+                # Convert to grayscale
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                
+                # Apply Gaussian blur to reduce noise
+                blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+                
+                # Apply adaptive thresholding
+                # We use a large block size (51) and a small constant (2) to get good contrast
+                threshold = cv2.adaptiveThreshold(
+                    blurred,
+                    255,
+                    cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                    cv2.THRESH_BINARY,
+                    51,  # block size - must be odd number
+                    2    # constant subtracted from mean
+                )
+                
+                # Save original and processed images for debugging
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                debug_dir = os.path.join(self.photos_dir, 'debug')
+                os.makedirs(debug_dir, exist_ok=True)
+                
+                # Save original
+                original_path = os.path.join(debug_dir, f'original_{timestamp}.jpg')
+                cv2.imwrite(original_path, frame)
+                
+                # Save thresholded
+                threshold_path = os.path.join(debug_dir, f'threshold_{timestamp}.jpg')
+                cv2.imwrite(threshold_path, threshold)
+                
+                # Log the paths for debugging
+                self.logger.info(f"Saved debug images: \nOriginal: {original_path}\nThreshold: {threshold_path}")
+
+                # Encode thresholded frame as JPEG
+                _, buffer = cv2.imencode('.jpg', threshold)
                 return buffer.tobytes()
 
             except Exception as e:

@@ -19,6 +19,7 @@ from anthropic import Anthropic
 import base64 
 import json
 import traceback
+import time 
 
 load_dotenv()
 
@@ -514,15 +515,27 @@ def create_app():
     @app.route('/api/generate_poem_with_photo', methods=['POST', 'GET'])
     def generate_poem_with_photo():
         """Take a photo, generate a poem with Claude AI, and print both."""
-        prompt_text = request.form.get(
-            'prompt', 
-            'Create a short poem of no more than 4 lines about this photo. '
-            'If the image shows a man, refer to him as "Marziol." If it shows a woman, refer to her as "Elisa." '
-            'Write the poem in either French or Italian. Return the result in JSON format with the key "result".'
-        )
+        prompt_text = """
+        Looking at this photo, create a short poem following these rules:
+        1. Maximum 4 lines
+        2. If there is a man in the photo, refer to him as "Marziol"
+        3. If there is a woman in the photo, refer to her as "Elisa"
+        4. Write in either French or Italian
+        5. Focus on the main subject or action in the photo
+        6. Return ONLY a JSON object in this exact format:
+        {
+            "result": "your poem here"
+        }
+        Do not include any other text, markdown, or formatting.
+        """
 
         try:
             # Capture a photo
+            camera_manager.camera.read()  # Clear any stale frame
+            time.sleep(0.2)  # Small delay to ensure fresh frame
+        
+        # Capture a photo
+            frame = camera_manager.get_preview_frame()
             frame = camera_manager.get_preview_frame()
             if not frame:
                 return jsonify({'status': 'error', 'message': 'Failed to capture photo'}), 500
