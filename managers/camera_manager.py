@@ -102,8 +102,8 @@ class CameraManager:
                 return None
 
         # In camera_manager.py (CameraManager class)
-    def get_preview_frame(self) -> Optional[bytes]:
-        """Get a single frame as JPEG bytes for preview"""
+    def get_preview_frame(self) -> tuple[Optional[bytes], Optional[bytes]]:
+        """Get a single frame as JPEG bytes for preview, returns (original, thresholded)"""
         with self.lock:
             try:
                 if not self.is_initialized:
@@ -117,7 +117,12 @@ class CameraManager:
                 if not ret or frame is None:
                     raise Exception("Failed to capture preview frame.")
 
+                # Save the original unrotated frame
+                original = frame.copy()
+                
+                # Rotate frame for processing
                 frame = cv2.rotate(frame, cv2.ROTATE_180)
+                
                 # Convert to grayscale
                 gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                 
@@ -125,7 +130,6 @@ class CameraManager:
                 blurred = cv2.GaussianBlur(gray, (5, 5), 0)
                 
                 # Apply adaptive thresholding
-                # We use a large block size (51) and a small constant (2) to get good contrast
                 threshold = cv2.adaptiveThreshold(
                     blurred,
                     255,
@@ -140,9 +144,9 @@ class CameraManager:
                 debug_dir = os.path.join(self.photos_dir, 'debug')
                 os.makedirs(debug_dir, exist_ok=True)
                 
-                # Save original
+                # Save original unrotated
                 original_path = os.path.join(debug_dir, f'original_{timestamp}.jpg')
-                cv2.imwrite(original_path, frame)
+                cv2.imwrite(original_path, original)
                 
                 # Save thresholded
                 threshold_path = os.path.join(debug_dir, f'threshold_{timestamp}.jpg')
@@ -151,15 +155,15 @@ class CameraManager:
                 # Log the paths for debugging
                 self.logger.info(f"Saved debug images: \nOriginal: {original_path}\nThreshold: {threshold_path}")
 
-                # Encode thresholded frame as JPEG
-                _, buffer = cv2.imencode('.jpg', threshold)
-                _, original_buffer = cv2.imencode('.jpg', frame)
+                # Encode both frames as JPEG
+                _, original_buffer = cv2.imencode('.jpg', original)  # Original unrotated
+                _, threshold_buffer = cv2.imencode('.jpg', threshold)  # Processed and rotated
                 
-                return original_buffer.tobytes(), buffer.tobytes()
+                return original_buffer.tobytes(), threshold_buffer.tobytes()
 
             except Exception as e:
                 self.logger.error(f"Error getting preview frame: {str(e)}")
-                return None
+                return None, None
 
     def close(self):
         """Properly close the camera"""
