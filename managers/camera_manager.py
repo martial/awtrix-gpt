@@ -44,7 +44,6 @@ class CameraManager:
                 pass
         return available_cameras
 
-    print(f"Available cameras: {list_available_cameras()}")
 
     def initialize_camera(self):
         """Initialize the camera with specified settings"""
