@@ -517,11 +517,11 @@ def create_app():
         """Take a photo, generate a poem with Claude AI, and print both."""
         prompt_text = """
         Looking at this photo, create a short poem following these rules:
-        1. Maximum 4 lines
+        1. Maximum 8 lines
         2. If there is a man in the photo, refer to him as "Marziol"
         3. If there is a woman in the photo, refer to her as "Elisa"
         4. Write in either French or Italian
-        5. Focus on the main subject or action in the photo
+        5. Focus on the main subject or action in the photo, try to describe a little
         6. Return ONLY a JSON object with the poem with this exact format: {"result": poem}
         Do not not use markdown.
         """

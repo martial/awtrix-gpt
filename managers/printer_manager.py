@@ -59,10 +59,10 @@ class ThermalPrinterManager:
             self.logger.error(f"Error printing image: {str(e)}")
             return False
 
-    def print_text(self, text: str, feed=5) -> bool:
+    def print_text(self, text: str, feed=3) -> bool:
         """Print text"""
         try:
-            self.printer.out(text, justify="C", strike=True, underline=2, upside_down= True,  bold=True)
+            self.printer.out(text, strike=True, underline=2, upside_down= True,  bold=True)
             self.printer.feed(feed)
             return True
         except Exception as e:
