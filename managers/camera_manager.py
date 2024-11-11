@@ -153,7 +153,9 @@ class CameraManager:
 
                 # Encode thresholded frame as JPEG
                 _, buffer = cv2.imencode('.jpg', threshold)
-                return buffer.tobytes()
+                _, original_buffer = cv2.imencode('.jpg', frame)
+                
+                return original_buffer.tobytes(), buffer.tobytes()
 
             except Exception as e:
                 self.logger.error(f"Error getting preview frame: {str(e)}")
