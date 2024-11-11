@@ -530,8 +530,9 @@ def create_app():
         Poem rules:
         - Maximum 8 lines
         - Maximum 32 characters per line
-        - If there is a man, refer to him as "Marziol"
-        - If there is a woman, refer to him as "Elisa"
+        - If there is a man in the picture, refer to him as "Marziol"
+        - If there is a woman in the picture, refer to him as "Elisa"
+        – You must include persons in the poem.
         - Use \\n for line breaks
         
         Return exact format:
@@ -674,12 +675,12 @@ def create_app():
                 printer_manager.printer.bold(False)
                 printer_manager.print_text("----------", 2)
                 printer_manager.print_image(photo_path)
-                printer_manager.printer.bold(True)
+                printer_manager.printer.bold(False)
                 printer_manager.printer.justify("L")
-                printer_manager.print_text(poem_formatted + "\n\n", 0)
-                printer_manager.print_text(description_formatted + "\n\n", 0)
+                printer_manager.print_text(poem_formatted + "\n", 0)
+                printer_manager.print_text(description_formatted + "\n", 0)
                 printer_manager.print_text(timestamp_formatted, 0)
-
+                printer_manager.print_text("\n")
                 # Send photo back to user
                 photo_bytes.seek(0)
                 return send_file(
