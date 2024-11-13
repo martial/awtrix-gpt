@@ -515,6 +515,36 @@ def create_app():
     @app.route('/api/generate_poem_with_photo', methods=['POST', 'GET'])
     def generate_poem_with_photo():
         """Take a photo, generate a poem with Claude AI, and print both."""
+        prompt_text = """
+        Looking at this photo, analyze the scene and create a response following these rules:
+
+        1. Return a JSON object with three keys:
+        - "result": the poem (Italian or French)
+        - "description": a scene description in French (max 3 lines of 32 chars) about:
+            * Room ambiance and lighting
+            * Order/disorder level
+            * Presence of people/objects
+            * General atmosphere
+        - "timestamp": current time in French format (leave this empty, code will fill it)
+        
+        Poem rules:
+        - Maximum 8 lines
+        - Maximum 32 characters per line
+        - If there is a man in the picture, refer to him as "Marziol"
+        - If there is a woman in the picture, refer to him as "Elisa"
+        – You must include persons in the poem.
+        - Use \\n for line breaks
+        
+        Return exact format:
+        {
+            "result": "poem here with\\nline breaks",
+            "description": "French description here\\nwith line breaks if needed",
+            "timestamp": ""
+        }
+
+        Do not use markdown or other formatting.
+        """
+        
         logging.info("Entering generate_poem_with_photo endpoint")
         
         # Check prerequisites
