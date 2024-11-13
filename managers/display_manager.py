@@ -5,13 +5,13 @@ from anthropic import Anthropic
 from dotenv import load_dotenv
 import os
 from datetime import date
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Any
 import json
 import random
 from datetime import datetime, timedelta
 import logging
 import yaml
-from typing import Dict, Optional, List, Any  # Added Any
+import feedparser
 
 def load_config(config_path: str = None) -> Dict[str, Any]:
     """Load configuration from YAML file"""
@@ -41,8 +41,7 @@ class AwtrixManager:
         # API keys
         self.openweather_api_key = os.getenv('OPENWEATHER_API_KEY')
         self.anthropic_api_key = os.getenv('ANTHROPIC_API_KEY')
-
-        
+        self.news_api_key = os.getenv('NEWS_API_KEY')  # Added news API key
         
         # Initialize Claude
         self.claude = Anthropic(api_key=self.anthropic_api_key)
@@ -58,6 +57,12 @@ class AwtrixManager:
         self.weather_phrases: Optional[List[Dict[str, str]]] = None
         self.poem_date: Optional[date] = None
         self.last_update_time: Optional[datetime] = None
+        
+        # Add rate limiting parameters
+        self.last_weather_call = datetime.min
+        self.last_news_call = datetime.min
+        self.weather_rate_limit = timedelta(minutes=10)  # Minimum time between weather API calls
+        self.news_rate_limit = timedelta(minutes=15)     # Minimum time between news API calls
         
         self.logger.info(f"Initialized AWTRIX controller for {self.host}")
 
@@ -81,7 +86,7 @@ class AwtrixManager:
                 "duration": duration
             }
             
-            response = requests.post(f"{self.base_url}/notify", json=payload)
+            response = requests.post(f"{self.base_url}/notify", json=payload, timeout=10)
             response.raise_for_status()
             time.sleep(duration)
             
@@ -89,7 +94,13 @@ class AwtrixManager:
             self.logger.error(f"Display error: {str(e)}")
 
     def get_weather(self) -> Dict[str, Dict]:
-        """Fetches detailed weather data for configured cities."""
+        """Fetches detailed weather data for configured cities with rate limiting."""
+        # Check rate limit
+        now = datetime.now()
+        if (now - self.last_weather_call) < self.weather_rate_limit:
+            self.logger.debug("Skipping weather update due to rate limit")
+            return {}
+
         weather_data = {}
         for city_key, city_info in self.cities.items():
             try:
@@ -102,7 +113,7 @@ class AwtrixManager:
                     'lang': city_info.get('language', 'en')
                 }
                 
-                response = requests.get(url, params=params)
+                response = requests.get(url, params=params, timeout=10)
                 response.raise_for_status()
                 data = response.json()
                 
@@ -124,9 +135,10 @@ class AwtrixManager:
             except Exception as e:
                 self.logger.error(f"Weather error for {city_key}: {str(e)}")
                 weather_data[city_key] = None
-                
+        
+        self.last_weather_call = now
         return weather_data
-
+    
     def format_weather_data(self, weather: Dict) -> str:
         """Format weather data for prompt template"""
         if not weather:
@@ -138,6 +150,65 @@ class AwtrixManager:
                 f"from {weather.get('wind_direction', '??')}°, visibility: {weather.get('visibility', 'N/A')} m, "
                 f"cloudiness: {weather.get('cloudiness', '??')}%, pressure: {weather.get('pressure', '??')} hPa")
 
+    def get_french_news(self):
+        """Fetch current French news headlines and descriptions using top-headlines endpoint"""
+        try:
+            if self.news_api_key:
+                url = "https://newsapi.org/v2/top-headlines"
+                params = {
+                    'country': 'fr',  # French news
+                    'apiKey': self.news_api_key,
+                    'pageSize': 5  # Limit to top 5 headlines
+                }
+                
+                response = requests.get(url, params=params, timeout=10)
+                print("FRENCH NEWS STATUS:", response.status_code)
+                data = response.json()
+                
+                if data.get('articles'):
+                    news_items = []
+                    for article in data['articles']:
+                        title = article.get('title', '').split('|')[0].split('-')[0].strip()
+                        description = article.get('description', '').strip()
+                        
+                        # Only add if we have both title and description
+                        if title and description and len(title) < 100:
+                            news_item = f"{title}\n{description}"
+                            news_items.append(news_item)
+                    
+                    if news_items:
+                        return "\n\n".join(news_items[:3])  # Limit to 3 most relevant with double newline separation
+
+            # Fallback to RSS feeds if NewsAPI fails
+            rss_feeds = [
+                "https://www.lemonde.fr/rss/une.xml",
+                "https://www.lefigaro.fr/rss/figaro_actualites.xml",
+                "https://www.lexpress.fr/rss/alaune.xml"
+            ]
+            
+            for feed_url in rss_feeds:
+                try:
+                    feed = feedparser.parse(feed_url)
+                    if feed.entries:
+                        news_items = []
+                        for entry in feed.entries[:3]:
+                            title = entry.title.split('|')[0].strip()
+                            description = getattr(entry, 'description', '').strip()
+                            if title and description:
+                                news_item = f"{title}\n{description}"
+                                news_items.append(news_item)
+                        if news_items:
+                            return "\n\n".join(news_items)
+                except Exception as e:
+                    self.logger.warning(f"Error fetching from {feed_url}: {str(e)}")
+                    continue
+
+            return "La vie continue en France"  # Generic fallback message
+
+        except Exception as e:
+            self.logger.error(f"Error fetching French news: {str(e)}")
+            return "Les actualites francaises"
+    
     def parse_and_highlight(self, text: str) -> List[Dict[str, str]]:
         """Parse text to highlight based on configuration"""
         fragments = []
@@ -182,6 +253,10 @@ class AwtrixManager:
             lyon_weather = self.format_weather_data(weather.get('LYON', {}))
             amantea_weather = self.format_weather_data(weather.get('AMANTEA', {}))
 
+            # Get French news headlines
+            french_news = self.get_french_news()
+           
+            
             # Get today's day and month in configured languages
             today = datetime.now()
             
@@ -195,6 +270,7 @@ class AwtrixManager:
             
             hour_now = today.hour
 
+
             # Format the prompt with current data
             prompt = self.prompt_template.format(
                 day_fr=day_fr,
@@ -203,9 +279,11 @@ class AwtrixManager:
                 month_it=month_it,
                 hour_now=hour_now,
                 lyon_weather=lyon_weather,
-                amantea_weather=amantea_weather
+                amantea_weather=amantea_weather,
+                french_news=french_news
             )
 
+            print(prompt)
             try:
                 response = self.claude.messages.create(
                     model="claude-3-5-sonnet-latest",
@@ -274,34 +352,33 @@ class AwtrixManager:
         except Exception as e:
             self.logger.error(f"Error in display cycle: {str(e)}")
 
-
-def run_display(config_path: str = None):
-    logging.info("Starting AWTRIX Family Weather Poetry Display")
-    
-    try:
-        awtrix = AwtrixFamilyDisplay(config_path=config_path)
+    def run_display(config_path: str = None):
+        logging.info("Starting AWTRIX Family Weather Poetry Display")
         
-        while True:
-            try:
-                # Check if we should update content
-                if awtrix.should_update_content():
-                    awtrix.create_daily_poems()
-                    awtrix.last_update_time = datetime.now()
-                    logging.info(f"Content updated at {awtrix.last_update_time}")
-                
-                # Run the display cycle
-                awtrix.display_cycle()
-                # Add a small delay to prevent CPU overuse
-                time.sleep(awtrix.config['display']['cycle_delay'])
-                
-            except Exception as e:
-                logging.error(f"Error in main loop: {str(e)}")
-                time.sleep(60)  # Wait a minute before retrying on error
+        try:
+            awtrix = AwtrixManager(config_path=config_path)  # Fixed class name
+            
+            while True:
+                try:
+                    # Check if we should update content
+                    if awtrix.should_update_content():
+                        awtrix.create_daily_poems()
+                        awtrix.last_update_time = datetime.now()
+                        logging.info(f"Content updated at {awtrix.last_update_time}")
+                    
+                    # Run the display cycle
+                    awtrix.display_cycle()
+                    # Add a small delay to prevent CPU overuse
+                    time.sleep(awtrix.config['display']['cycle_delay'])
+                    
+                except Exception as e:
+                    logging.error(f"Error in main loop: {str(e)}")
+                    time.sleep(60)  # Wait a minute before retrying on error
 
-    except KeyboardInterrupt:
-        logging.info("\nDisplay stopped by user")
-    except Exception as e:
-        logging.error(f"\nFatal error: {str(e)}")
+        except KeyboardInterrupt:
+            logging.info("\nDisplay stopped by user")
+        except Exception as e:
+            logging.error(f"\nFatal error: {str(e)}")
 
-if __name__ == "__main__":
-    run_display()
+    if __name__ == "__main__":
+        run_display()
