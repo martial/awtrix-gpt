@@ -512,6 +512,63 @@ def create_app():
                 'message': str(e)
             }), 500
     
+
+    def add_text_to_image(image_bytes, poem_text):
+        """Add poem text to the bottom of the rotated image with larger text"""
+        from PIL import Image, ImageDraw, ImageFont
+        import io
+
+        # Open the image
+        image = Image.open(io.BytesIO(image_bytes))
+        
+        # Rotate the image 180 degrees
+        image = image.rotate(180)
+        
+        # Calculate the space needed for text
+        margin = 40  # Increased margin for better spacing
+        font_size = 36  # Increased font size
+        try:
+            font = ImageFont.truetype("DejaVuSans.ttf", font_size)
+        except:
+            font = ImageFont.load_default()
+            
+        # Calculate text height
+        lines = poem_text.split('\n')
+        line_spacing = 10  # Increased line spacing
+        text_height = len(lines) * (font_size + line_spacing)
+        
+        # Create new image with extra space for text
+        new_height = image.height + text_height + (2 * margin)
+        new_image = Image.new('RGB', (image.width, new_height), 'white')
+        
+        # Paste the rotated original image
+        new_image.paste(image, (0, 0))
+        
+        # Add text
+        draw = ImageDraw.Draw(new_image)
+        y = image.height + margin
+        
+        # Try to load a bold version of the font for better visibility
+        try:
+            bold_font = ImageFont.truetype("DejaVuSans-Bold.ttf", font_size)
+        except:
+            bold_font = font
+        
+        for line in lines:
+            # Center the text
+            text_width = draw.textlength(line, font=bold_font)
+            x = (image.width - text_width) // 2
+            # Draw with a light shadow for better readability
+            draw.text((x+2, y+2), line, fill='gray', font=bold_font)  # Shadow
+            draw.text((x, y), line, fill='black', font=bold_font)  # Main text
+            y += font_size + line_spacing
+
+        # Convert back to bytes
+        img_byte_arr = io.BytesIO()
+        new_image.save(img_byte_arr, format='JPEG', quality=95)  # Increased quality
+        img_byte_arr.seek(0)
+        
+        return img_byte_arr.getvalue()
     @app.route('/api/generate_poem_with_photo', methods=['POST', 'GET'])
     def generate_poem_with_photo():
         """Take a photo, generate a poem with Claude AI, and print both."""
