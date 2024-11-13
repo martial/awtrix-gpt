@@ -17,12 +17,15 @@ class ThermalPrinterManager:
         except Exception as e:
             self.logger.error(f"Error loading config: {str(e)}")
             raise
-
+        
         self.printer: Optional[ThermalPrinter] = None
+        
+        '''
         self.initialize_printer()
         self.printer.inverse(False)
         self.printer.bold(True)
-        self.printer.upside_down(True)
+        self.printer.upside_down(False)
+        '''
 
     def initialize_printer(self):
         """Initialize the thermal printer with specified settings"""
