@@ -515,150 +515,57 @@ def create_app():
     @app.route('/api/generate_poem_with_photo', methods=['POST', 'GET'])
     def generate_poem_with_photo():
         """Take a photo, generate a poem with Claude AI, and print both."""
-        prompt_text = """
-        Looking at this photo, analyze the scene and create a response following these rules:
-
-        1. Return a JSON object with three keys:
-        - "result": the poem (Italian or French)
-        - "description": a scene description in French (max 3 lines of 32 chars) about:
-            * Room ambiance and lighting
-            * Order/disorder level
-            * Presence of people/objects
-            * General atmosphere
-        - "timestamp": current time in French format (leave this empty, code will fill it)
+        logging.info("Entering generate_poem_with_photo endpoint")
         
-        Poem rules:
-        - Maximum 8 lines
-        - Maximum 32 characters per line
-        - If there is a man in the picture, refer to him as "Marziol"
-        - If there is a woman in the picture, refer to him as "Elisa"
-        – You must include persons in the poem.
-        - Use \\n for line breaks
-        
-        Return exact format:
-        {
-            "result": "poem here with\\nline breaks",
-            "description": "French description here\\nwith line breaks if needed",
-            "timestamp": ""
-        }
-
-        Do not use markdown or other formatting.
-        """
-
-        def wrap_and_reverse_text(text, max_width=32):
-            """Wrap text and reverse the order of lines"""
-            paragraphs = text.split('\n')
-            all_wrapped_lines = []
+        # Check prerequisites
+        if not camera_manager or not camera_manager.camera:
+            logging.error("Camera not initialized")
+            return jsonify({'status': 'error', 'message': 'Camera not initialized'}), 500
             
-            for paragraph in paragraphs:
-                words = paragraph.split()
-                lines = []
-                current_line = []
-                current_length = 0
-
-                for word in words:
-                    word_length = len(word)
-                    if current_length + word_length + len(current_line) <= max_width:
-                        current_line.append(word)
-                        current_length += word_length
-                    else:
-                        if current_line:
-                            line = ' '.join(current_line)
-                            lines.append(line)
-                        current_line = [word]
-                        current_length = word_length
-
-                if current_line:
-                    line = ' '.join(current_line)
-                    lines.append(line)
-
-                all_wrapped_lines.extend(lines)
-
-            all_wrapped_lines.reverse()
-            return '\n'.join(all_wrapped_lines)
-
-        def add_text_to_image(image_bytes, poem_text):
-            """Add poem text to the bottom of the rotated image with larger text"""
-            from PIL import Image, ImageDraw, ImageFont
-            import io
-
-            # Open the image
-            image = Image.open(io.BytesIO(image_bytes))
+        if not printer_manager or not printer_manager.printer:
+            logging.error("Printer not initialized")
+            return jsonify({'status': 'error', 'message': 'Printer not initialized'}), 500
             
-            # Rotate the image 180 degrees
-            image = image.rotate(180)
-            
-            # Calculate the space needed for text
-            margin = 40  # Increased margin for better spacing
-            font_size = 36  # Increased font size
-            try:
-                font = ImageFont.truetype("DejaVuSans.ttf", font_size)
-            except:
-                font = ImageFont.load_default()
-                
-            # Calculate text height
-            lines = poem_text.split('\n')
-            line_spacing = 10  # Increased line spacing
-            text_height = len(lines) * (font_size + line_spacing)
-            
-            # Create new image with extra space for text
-            new_height = image.height + text_height + (2 * margin)
-            new_image = Image.new('RGB', (image.width, new_height), 'white')
-            
-            # Paste the rotated original image
-            new_image.paste(image, (0, 0))
-            
-            # Add text
-            draw = ImageDraw.Draw(new_image)
-            y = image.height + margin
-            
-            # Try to load a bold version of the font for better visibility
-            try:
-                bold_font = ImageFont.truetype("DejaVuSans-Bold.ttf", font_size)
-            except:
-                bold_font = font
-            
-            for line in lines:
-                # Center the text
-                text_width = draw.textlength(line, font=bold_font)
-                x = (image.width - text_width) // 2
-                # Draw with a light shadow for better readability
-                draw.text((x+2, y+2), line, fill='gray', font=bold_font)  # Shadow
-                draw.text((x, y), line, fill='black', font=bold_font)  # Main text
-                y += font_size + line_spacing
-
-            # Convert back to bytes
-            img_byte_arr = io.BytesIO()
-            new_image.save(img_byte_arr, format='JPEG', quality=95)  # Increased quality
-            img_byte_arr.seek(0)
-            
-            return img_byte_arr.getvalue()
+        if not os.getenv("ANTHROPIC_API_KEY"):
+            logging.error("Missing ANTHROPIC_API_KEY")
+            return jsonify({'status': 'error', 'message': 'Missing API key'}), 500
 
         try:
-            # Capture a photo
-            camera_manager.camera.read()  # Clear any stale frame
-            time.sleep(0.2)  # Small delay to ensure fresh frame
+            # Clear stale frame
+            logging.info("Clearing stale frame")
+            camera_manager.camera.read()
+            time.sleep(0.2)
             
-            # Capture a photo
+            # Capture photo
+            logging.info("Capturing photo")
             original_frame, threshold_frame = camera_manager.get_preview_frame()
             if not original_frame or not threshold_frame:
+                logging.error("Failed to capture frames")
                 return jsonify({'status': 'error', 'message': 'Failed to capture photo'}), 500
-
-            # Save both images
-            with open("photo.jpg", 'wb') as photo_file:
-                photo_file.write(threshold_frame)  # Save thresholded version for printing
                 
-            with open("photo_original.jpg", 'wb') as photo_file:
-                photo_file.write(original_frame)  # Save original for reference
+            logging.info(f"Frame sizes - Original: {len(original_frame)}, Threshold: {len(threshold_frame)}")
 
-            # Create bytes objects for both images
+            # Save images
+            try:
+                logging.info("Saving images to disk")
+                with open("photo.jpg", 'wb') as photo_file:
+                    photo_file.write(threshold_frame)
+                with open("photo_original.jpg", 'wb') as photo_file:
+                    photo_file.write(original_frame)
+            except Exception as e:
+                logging.error(f"Failed to save images: {str(e)}")
+                return jsonify({'status': 'error', 'message': f'Failed to save images: {str(e)}'}), 500
+
+            # Convert to base64
+            logging.info("Converting to base64")
             photo_bytes = io.BytesIO(threshold_frame)
             original_bytes = io.BytesIO(original_frame)
-
             image_data_base64 = base64.b64encode(original_bytes.getvalue()).decode('utf-8')
-            image_media_type = 'image/jpeg'
-
-            # Prepare the messages payload
+            
+            # Call Claude API
+            logging.info("Calling Claude API")
+            anthropic = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+            
             messages = [
                 {
                     "role": "user",
@@ -667,7 +574,7 @@ def create_app():
                             "type": "image",
                             "source": {
                                 "type": "base64",
-                                "media_type": image_media_type,
+                                "media_type": "image/jpeg",
                                 "data": image_data_base64,
                             },
                         },
@@ -678,53 +585,44 @@ def create_app():
                     ]
                 }
             ]
-            anthropic = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-
+            
+            logging.info("Sending request to Claude")
             response = anthropic.messages.create(
                 model="claude-3-5-sonnet-20241022",
                 max_tokens=1024,
                 messages=messages
             )
-
-            # Extract and parse response
-            raw_text = response.content[0].text.strip()
             
+            logging.info("Got response from Claude")
+            raw_text = response.content[0].text.strip()
+            logging.debug(f"Raw response: {raw_text}")
+
+            # Parse response
             try:
-                # Parse the JSON response
                 response_content = json.loads(raw_text)
-                
-                # Add timestamp in French format
-                current_time = datetime.now()
-                french_date = current_time.strftime("%A %d %B %Y").lower()
-                french_time = current_time.strftime("%H:%M")
-                
-                # Translate day and month to French
-                french_days = {
-                    'monday': 'lundi', 'tuesday': 'mardi', 'wednesday': 'mercredi',
-                    'thursday': 'jeudi', 'friday': 'vendredi', 'saturday': 'samedi', 
-                    'sunday': 'dimanche'
-                }
-                french_months = {
-                    'january': 'janvier', 'february': 'février', 'march': 'mars',
-                    'april': 'avril', 'may': 'mai', 'june': 'juin',
-                    'july': 'juillet', 'august': 'août', 'september': 'septembre',
-                    'october': 'octobre', 'november': 'novembre', 'december': 'décembre'
-                }
-                
-                for eng, fr in french_days.items():
-                    french_date = french_date.replace(eng, fr)
-                for eng, fr in french_months.items():
-                    french_date = french_date.replace(eng, fr)
-                
-                timestamp = f"{french_date} à {french_time}"
-                response_content['timestamp'] = timestamp
-                
-                # Wrap and reverse all text content
-                timestamp_formatted = wrap_and_reverse_text(timestamp)
-                description_formatted = wrap_and_reverse_text(response_content.get("description", ""))
-                poem_formatted = wrap_and_reverse_text(response_content.get("result", ""))
-                
-                # Print everything
+            except json.JSONDecodeError as e:
+                logging.error(f"Failed to parse JSON response: {str(e)}")
+                logging.error(f"Raw text was: {raw_text}")
+                return jsonify({'status': 'error', 'message': 'Invalid response format'}), 500
+
+            # Format timestamp
+            logging.info("Formatting timestamp")
+            current_time = datetime.now()
+            french_date = current_time.strftime("%A %d %B %Y").lower()
+            french_time = current_time.strftime("%H:%M")
+            
+            # Process the image
+            logging.info("Processing image")
+            photo_bytes.seek(0)
+            try:
+                processed_image = add_text_to_image(photo_bytes.getvalue(), response_content['result'])
+            except Exception as e:
+                logging.error(f"Failed to process image: {str(e)}")
+                return jsonify({'status': 'error', 'message': f'Failed to process image: {str(e)}'}), 500
+
+            # Print results
+            logging.info("Printing results")
+            try:
                 printer_manager.printer.justify("C")
                 printer_manager.printer.bold(False)
                 printer_manager.print_text("----------", 2)
@@ -735,27 +633,21 @@ def create_app():
                 printer_manager.print_text(description_formatted + "\n", 0)
                 printer_manager.print_text(timestamp_formatted, 0)
                 printer_manager.print_text("\n")
+            except Exception as e:
+                logging.error(f"Failed to print: {str(e)}")
+                # Continue even if printing fails
 
-                # Process the image with the poem
-                photo_bytes.seek(0)
-                processed_image = add_text_to_image(photo_bytes.getvalue(), response_content['result'])
-
-                # Send processed photo back to user
-                return send_file(
-                    io.BytesIO(processed_image),
-                    mimetype='image/jpeg',
-                    as_attachment=True,
-                    download_name="photo_with_poem.jpg"
-                )
-
-            except json.JSONDecodeError as e:
-                print(f"Error parsing JSON: {e}")
-                print(f"Raw text was: {raw_text}")
-                return jsonify({'status': 'error', 'message': f'JSON parsing error: {str(e)}'}), 500
+            # Return processed image
+            logging.info("Returning processed image")
+            return send_file(
+                io.BytesIO(processed_image),
+                mimetype='image/jpeg',
+                as_attachment=True,
+                download_name="photo_with_poem.jpg"
+            )
 
         except Exception as e:
-            logging.error(f"Error in /api/generate_poem_with_photo: {str(e)}")
-            logging.error("Error in /api/generate_poem_with_photo")
+            logging.error(f"Error in generate_poem_with_photo: {str(e)}")
             logging.error(traceback.format_exc())
             return jsonify({'status': 'error', 'message': str(e)}), 500
     
