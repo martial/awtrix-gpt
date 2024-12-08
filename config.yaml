@@ -1,16 +1,3 @@
-printer:
-  port: '/dev/tty.usbserial-31230'  # Update this to your printer port
-  baudrate: 9600
-  heat_time: 80
-  heat_dots: 7
-  heat_interval: 2
-  max_width: 384  # Standard width for many thermal printers
-  settings:
-    auto_feed: true
-    font_b: false
-    bold: false
-    underline: 0
-    justify: 'left'
 camera:
   index: 0
   name: Logitech C920
@@ -31,13 +18,26 @@ colors:
   weather: '#87CEEB'
 display:
   active_hours:
-    end: 22
-    start: 6
+    end: 23
+    start: 7
   cycle_delay: 5
   debug: true
   host: 192.168.1.101
   message_duration: 15
   update_interval: 3600
+printer:
+  baudrate: 9600
+  heat_dots: 7
+  heat_interval: 2
+  heat_time: 80
+  max_width: 384
+  port: /dev/ttyUSB0
+  settings:
+    auto_feed: true
+    bold: false
+    font_b: false
+    justify: left
+    underline: 0
 time:
   languages:
     fr:
