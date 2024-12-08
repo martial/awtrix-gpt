@@ -52,11 +52,13 @@ class AwtrixManager:
         # City coordinates from config
         self.cities = self.config['weather']['cities']
         
-        # Store the poem and weather phrase data
+        # Update stored content attributes
+        self.messages: Optional[List[Dict[str, str]]] = None
+        self.weather: Optional[List[Dict[str, str]]] = None
+        self.news: Optional[List[Dict[str, str]]] = None
+        self.suggested_activities: Optional[List[Dict[str, str]]] = None
         self.poems: Optional[List[Dict[str, str]]] = None
-        self.weather_phrases: Optional[List[Dict[str, str]]] = None
-        self.poem_date: Optional[date] = None
-        self.last_update_time: Optional[datetime] = None
+        self.content_date: Optional[date] = None
         
         # Add rate limiting parameters
         self.last_weather_call = datetime.min
@@ -244,9 +246,7 @@ class AwtrixManager:
         return fragments
 
     def create_daily_poems(self):
-        """Create new poems and weather phrases if needed"""
-        self.logger.info("Starting to generate new daily poems and weather phrases...")
-        
+        """Create new content if needed"""
         try:
             # Get current weather
             weather = self.get_weather()
@@ -256,62 +256,78 @@ class AwtrixManager:
             # Get French news headlines
             french_news = self.get_french_news()
            
-            
             # Get today's day and month in configured languages
             today = datetime.now()
             
-            # French date
-            day_fr = self.config['time']['languages']['fr']['days'][today.weekday()]
-            month_fr = self.config['time']['languages']['fr']['months'][today.month - 1]
-            
-            # Italian date
-            day_it = self.config['time']['languages']['it']['days'][today.weekday()]
-            month_it = self.config['time']['languages']['it']['months'][today.month - 1]
-            
-            hour_now = today.hour
-
+            # Format timestamp as a readable date/time string
+            timestamp = today.strftime("%d %B %Y %H:%M")
 
             # Format the prompt with current data
             prompt = self.prompt_template.format(
-                day_fr=day_fr,
-                day_it=day_it,
-                month_fr=month_fr,
-                month_it=month_it,
-                hour_now=hour_now,
+                timestamp=timestamp,
                 lyon_weather=lyon_weather,
                 amantea_weather=amantea_weather,
                 french_news=french_news
             )
 
             print(prompt)
-            try:
-                response = self.claude.messages.create(
-                    model="claude-3-5-sonnet-latest",
-                    max_tokens=2000,
-                    messages=[{"role": "user", "content": prompt}]
-                )
+            response = self.claude.messages.create(
+                model="claude-3-5-sonnet-latest",
+                max_tokens=2000,
+                messages=[{"role": "user", "content": prompt}]
+            )
 
-                # Parse JSON response
-                data = json.loads(response.content[0].text.strip())
-                self.poems = data.get("messages", [])
-                self.weather_phrases = data.get("weather_phrases", [])
-                self.poem_date = date.today()
-                
-                self.logger.info(f"Generated {len(self.poems)} poems and {len(self.weather_phrases)} weather phrases")
-                self.logger.debug("Poems: %s", self.poems)
-                self.logger.debug("Weather phrases: %s", self.weather_phrases)
-                    
-            except json.JSONDecodeError as e:
-                self.logger.error(f"Error decoding JSON: {str(e)}")
-                self.logger.debug(f"Raw response: {response.content[0].text}")
-            except Exception as e:
-                self.logger.error(f"Error creating poems and phrases: {str(e)}")
-                self.poems = [{"id": "1", "poem": "Elisa et Marziol, amoureux des petites joies, de Lyon à Amantea."}]
-                self.weather_phrases = [{"id": "W1", "weather_phrase": "Il fait doux à Lyon et ensoleillé à Amantea"}]
-                
+            # Parse JSON response
+            data = json.loads(response.content[0].text.strip())
+            print(data)
+            # Convert simple strings to dictionaries with id and text fields
+            def format_messages(messages, prefix):
+                return [
+                    {"id": f"{prefix}_{i}", "text": msg} 
+                    for i, msg in enumerate(messages)
+                ]
+
+            self.messages = format_messages(data.get("messages", []), "MSG")
+            self.weather = format_messages(data.get("weather", []), "WTH")
+            self.news = format_messages(data.get("news", []), "NEWS")
+            self.suggested_activities = format_messages(data.get("suggested_activities", []), "ACT")
+            self.poems = format_messages(data.get("poems", []), "POEM")
+            self.content_date = date.today()
+            
+            self.logger.info(f"Generated new content: {len(self.messages)} messages, {len(self.weather)} weather, "
+                            f"{len(self.news)} news, {len(self.suggested_activities)} activities, {len(self.poems)} poems")
+            
         except Exception as e:
-            self.logger.error(f"Fatal error in create_daily_poems: {str(e)}")
-            raise
+            self.logger.error(f"Error creating content: {str(e)}")
+            self._set_fallback_content()
+
+    def _set_fallback_content(self):
+        """Set fallback content in case of errors"""
+        self.messages = [{"id": "M1", "text": "Elisa et Marziol, amoureux des petites joies"}]
+        self.weather = [{"id": "W1", "text": "Il fait doux a Lyon et ensoleille a Amantea"}]
+        self.news = [{"id": "N1", "text": "Les actualites du jour"}]
+        self.suggested_activities = [{"id": "A1", "text": "Un petit smoothie ensemble?"}]
+        self.poems = [{"id": "P1", "text": "Lyon Amantea, deux coeurs unis"}]
+
+    def display_cycle(self):
+        """Display messages with configured delay"""
+        if not all([self.messages, self.weather, self.news, self.suggested_activities, self.poems]):
+            self.logger.warning("No content available for display")
+            return
+
+        # Combine all content types
+        all_content = (self.messages + self.weather + self.news + 
+                      self.suggested_activities + self.poems)
+        
+        try:
+            item = random.choice(all_content)
+            text = item.get("text", "")
+            self.logger.debug(f"Displaying: {text}")
+            fragments = self.parse_and_highlight(text)
+            self.display_message(fragments)
+            time.sleep(self.config['display']['cycle_delay'])
+        except Exception as e:
+            self.logger.error(f"Error in display cycle: {str(e)}")
 
     def should_update_content(self) -> bool:
         """Determine if content should be updated based on configuration"""
@@ -327,58 +343,41 @@ class AwtrixManager:
 
         # Check update interval
         update_interval = timedelta(seconds=self.config['display']['update_interval'])
-        if not self.last_update_time or (current_time - self.last_update_time) >= update_interval:
+        if not hasattr(self, 'last_update_time') or not self.last_update_time or (current_time - self.last_update_time) >= update_interval:
             self.logger.info("Time to update content")
             return True
 
         self.logger.debug(f"Last update was {(current_time - self.last_update_time).seconds / 3600:.2f} hours ago")
         return False
 
-    def display_cycle(self):
-        """Display messages with configured delay"""
-        if not self.poems or not self.weather_phrases:
-            self.logger.warning("No content available for display")
-            return
-
-        combined_content = self.poems + self.weather_phrases
+def run_display(config_path: str = None):
+    logging.info("Starting AWTRIX Family Weather Poetry Display")
+    
+    try:
+        awtrix = AwtrixManager(config_path=config_path)
+        awtrix.last_update_time = None
         
-        try:
-            item = random.choice(combined_content)
-            text = item if isinstance(item, str) else item.get("poem", item.get("weather_phrase", ""))
-            self.logger.debug(f"Displaying: {text}")
-            fragments = self.parse_and_highlight(text)
-            self.display_message(fragments)
-            time.sleep(self.config['display']['cycle_delay'])
-        except Exception as e:
-            self.logger.error(f"Error in display cycle: {str(e)}")
+        while True:
+            try:
+                # Check if we should update content
+                if awtrix.should_update_content():
+                    awtrix.create_daily_poems()
+                    awtrix.last_update_time = datetime.now()
+                    logging.info(f"Content updated at {awtrix.last_update_time}")
+                
+                # Run the display cycle
+                awtrix.display_cycle()
+                # Add a small delay to prevent CPU overuse
+                time.sleep(awtrix.config['display']['cycle_delay'])
+                
+            except Exception as e:
+                logging.error(f"Error in main loop: {str(e)}")
+                time.sleep(60)  # Wait a minute before retrying on error
 
-    def run_display(config_path: str = None):
-        logging.info("Starting AWTRIX Family Weather Poetry Display")
-        
-        try:
-            awtrix = AwtrixManager(config_path=config_path)  # Fixed class name
-            
-            while True:
-                try:
-                    # Check if we should update content
-                    if awtrix.should_update_content():
-                        awtrix.create_daily_poems()
-                        awtrix.last_update_time = datetime.now()
-                        logging.info(f"Content updated at {awtrix.last_update_time}")
-                    
-                    # Run the display cycle
-                    awtrix.display_cycle()
-                    # Add a small delay to prevent CPU overuse
-                    time.sleep(awtrix.config['display']['cycle_delay'])
-                    
-                except Exception as e:
-                    logging.error(f"Error in main loop: {str(e)}")
-                    time.sleep(60)  # Wait a minute before retrying on error
+    except KeyboardInterrupt:
+        logging.info("\nDisplay stopped by user")
+    except Exception as e:
+        logging.error(f"\nFatal error: {str(e)}")
 
-        except KeyboardInterrupt:
-            logging.info("\nDisplay stopped by user")
-        except Exception as e:
-            logging.error(f"\nFatal error: {str(e)}")
-
-    if __name__ == "__main__":
-        run_display()
+if __name__ == "__main__":
+    run_display()
