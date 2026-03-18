@@ -668,7 +668,7 @@ def create_app():
                 import json
                 ollama_url = f"{ollama_host}/api/generate"
                 payload = {
-                    "model": "llama3.2",
+                    "model": config.get("ollama_model", "llama3.2"),
                     "prompt": prompt_text,
                     "images": [image_data_base64] if image_data_base64 else [],
                     "stream": False,
