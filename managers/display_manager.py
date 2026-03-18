@@ -1,8 +1,7 @@
 import re
 import requests
 import time
-from google import genai
-from google.genai import types
+
 from dotenv import load_dotenv
 import os
 from datetime import date
@@ -382,16 +381,23 @@ class AwtrixManager:
             )
 
             print(prompt)
-            response = self.client.models.generate_content(
-                model="gemini-3.1-flash-lite-preview", 
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    tools=[{"google_search": {}}]
-                )
-            )
-
+            # Make HTTP call to local Ollama on the Mac (Llama 3.2 8B)
+            ollama_url = "http://192.168.1.81:11434/api/generate"
+            payload = {
+                "model": "llama3.2",
+                "prompt": prompt,
+                "stream": False,
+                "format": "json"
+            }
+            
+            import urllib.request
+            req = urllib.request.Request(ollama_url, data=json.dumps(payload).encode('utf-8'), headers={'Content-Type': 'application/json'})
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                result = json.loads(resp.read().decode('utf-8'))
+                raw_text = result.get("response", "").replace("```json", "").replace("```", "").strip()
+            
             # Parse JSON response
-            data = json.loads(response.text.replace("```json", "").replace("```", "").strip())
+            data = json.loads(raw_text)
             print(data)
             # Convert simple strings to dictionaries with id and text fields
             def format_messages(messages, prefix):

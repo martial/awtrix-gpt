@@ -15,8 +15,7 @@ from managers.display_manager import AwtrixManager
 from managers.camera_manager import CameraManager
 from managers.printer_manager import ThermalPrinterManager
 from thermalprinter import ThermalPrinter
-from google import genai
-from google.genai import types
+import urllib.request
 import base64 
 import json
 import traceback
