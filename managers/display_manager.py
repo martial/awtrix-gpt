@@ -2,6 +2,7 @@ import re
 import requests
 import time
 from google import genai
+from google.genai import types
 from dotenv import load_dotenv
 import os
 from datetime import date
@@ -272,7 +273,13 @@ class AwtrixManager:
             )
 
             print(prompt)
-            response = self.client.models.generate_content(model="gemini-3.1-flash-lite-preview", contents=prompt)
+            response = self.client.models.generate_content(
+                model="gemini-3.1-flash-lite-preview", 
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    tools=[{"google_search": {}}]
+                )
+            )
 
             # Parse JSON response
             data = json.loads(response.text.replace("```json", "").replace("```", "").strip())
