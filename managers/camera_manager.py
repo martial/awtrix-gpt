@@ -62,7 +62,9 @@ class CameraManager:
                 time.sleep(2)  # Wait for camera to initialize
                 
                 if not self.camera.isOpened():
-                    raise Exception(f"Failed to open camera at index {self.config['camera']['index']}")
+                    print(f"Warning: Failed to open camera at index {self.config['camera']['index']}")
+                    self.camera = None
+                    return
 
                 # Set default resolution if specified
                 width = self.config['camera']['resolution'].get('width', 640)
