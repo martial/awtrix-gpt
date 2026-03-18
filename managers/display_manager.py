@@ -173,6 +173,35 @@ class AwtrixManager:
         except Exception as e:
             self.logger.error(f"HTTP liquid error: {e}")
 
+    def get_sea_temperature(self, lat=43.2965, lon=5.3698):
+        """Fetch real-time sea temperature using Open-Meteo Marine API."""
+        try:
+            url = f"https://marine-api.open-meteo.com/v1/marine?latitude={lat}&longitude={lon}&current=ocean_temperature"
+            response = requests.get(url, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                if 'current' in data and 'ocean_temperature' in data['current']:
+                    return data['current']['ocean_temperature']
+        except Exception as e:
+            self.logger.error(f"Failed to fetch sea temperature: {e}")
+        return None
+
+    def get_sea_data(self, lat=43.25, lon=5.37):
+        """Fetch real-time wave height using Open-Meteo Marine API."""
+        try:
+            url = f"https://marine-api.open-meteo.com/v1/marine?latitude={lat}&longitude={lon}&hourly=wave_height"
+            response = requests.get(url, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                if 'hourly' in data and 'wave_height' in data['hourly']:
+                    # Just get the current hour's wave height
+                    import datetime
+                    current_hour = datetime.datetime.now().hour
+                    return data['hourly']['wave_height'][current_hour]
+        except Exception as e:
+            self.logger.error(f"Failed to fetch sea data: {e}")
+        return None
+
     def get_weather(self) -> Dict[str, Dict]:
         """Fetches detailed weather data for configured cities with rate limiting."""
         # Check rate limit
