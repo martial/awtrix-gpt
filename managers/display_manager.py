@@ -187,17 +187,20 @@ class AwtrixManager:
         return None
 
     def get_sea_data(self, lat=43.25, lon=5.37):
-        """Fetch real-time wave height using Open-Meteo Marine API."""
+        """Fetch real-time wave height, direction, and period using Open-Meteo Marine API."""
         try:
-            url = f"https://marine-api.open-meteo.com/v1/marine?latitude={lat}&longitude={lon}&hourly=wave_height"
+            url = f"https://marine-api.open-meteo.com/v1/marine?latitude={lat}&longitude={lon}&hourly=wave_height,wave_direction,wave_period"
             response = requests.get(url, timeout=5)
             if response.status_code == 200:
                 data = response.json()
                 if 'hourly' in data and 'wave_height' in data['hourly']:
-                    # Just get the current hour's wave height
                     import datetime
                     current_hour = datetime.datetime.now().hour
-                    return data['hourly']['wave_height'][current_hour]
+                    return {
+                        'height': data['hourly']['wave_height'][current_hour],
+                        'direction': data['hourly']['wave_direction'][current_hour],
+                        'period': data['hourly']['wave_period'][current_hour]
+                    }
         except Exception as e:
             self.logger.error(f"Failed to fetch sea data: {e}")
         return None
