@@ -369,7 +369,7 @@ class AwtrixManager:
 
     def display_cycle(self):
         """Display messages sequentially from a shuffled queue for better flow"""
-        if not all([self.messages, self.weather, self.news, self.suggested_activities, self.poems]):
+        if not any([self.messages, self.weather, self.news, self.suggested_activities, self.poems]):
             self.logger.warning("No content available for display")
             return
             
