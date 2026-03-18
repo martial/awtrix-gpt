@@ -64,7 +64,7 @@ class AwtrixManager:
         self.last_weather_call = datetime.min
         self.last_news_call = datetime.min
         self.weather_rate_limit = timedelta(minutes=10)  # Minimum time between weather API calls
-                self.news_rate_limit = timedelta(minutes=15)     # Minimum time between news API calls
+        self.news_rate_limit = timedelta(minutes=15)     # Minimum time between news API calls
         self.message_queue = []
         
         self.logger.info(f"Initialized AWTRIX controller for {self.host}")
