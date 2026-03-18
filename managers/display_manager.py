@@ -9,6 +9,8 @@ from datetime import date
 from typing import Dict, Optional, List, Any
 import json
 import random
+import math
+import colorsys
 from datetime import datetime, timedelta
 import logging
 import yaml
@@ -96,6 +98,56 @@ class AwtrixManager:
             
         except Exception as e:
             self.logger.error(f"Display error: {str(e)}")
+
+
+    def draw_liquid_animation(self, duration_sec: int = 5):
+        """Send raw RGB565 UDP pixels for a liquid animation."""
+        import socket
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            start_time = time.time()
+            fps = 10
+            t = 0.0
+            
+            # Simple fallback temp
+            temperature = 20
+            try:
+                # Try to get real temperature from current lyon weather
+                if getattr(self, 'weather', None) and len(self.weather) > 0:
+                    temp_str = self.weather[0].get('text', '')
+                    # try to extract first number (approx temp)
+                    nums = [int(s) for s in temp_str.split() if s.isdigit()]
+                    if nums:
+                        temperature = nums[0]
+            except Exception:
+                pass
+                
+            base_hue = 0.6 - (max(min(temperature, 35), 0) / 35.0) * 0.55
+            
+            while time.time() - start_time < duration_sec:
+                pixels = bytearray()
+                for y in range(8):
+                    for x in range(32):
+                        val = math.sin(x * 0.3 + t * 2.0) + math.sin(y * 0.5 + t * 1.5) + math.sin((x+y)*0.2 - t)
+                        brightness = (val + 3) / 6.0
+                        hue = (base_hue + (math.sin(x * 0.1 + t) * 0.05)) % 1.0
+                        sat = 0.8 + (brightness * 0.2)
+                        val_hsv = 0.2 + (brightness * 0.8)
+                        
+                        r, g, b = colorsys.hsv_to_rgb(hue, sat, val_hsv)
+                        pixels.append(int(r * 255))
+                        pixels.append(int(g * 255))
+                        pixels.append(int(b * 255))
+                
+                sock.sendto(pixels, (self.host, 21324))
+                t += 0.2
+                time.sleep(1.0 / fps)
+                
+            # Clear UDP frame
+            sock.sendto(bytearray([0] * 768), (self.host, 21324))
+            sock.close()
+        except Exception as e:
+            self.logger.error(f"UDP liquid error: {e}")
 
     def get_weather(self) -> Dict[str, Dict]:
         """Fetches detailed weather data for configured cities with rate limiting."""
@@ -335,17 +387,8 @@ class AwtrixManager:
             self.display_message(fragments)
             time.sleep(self.config['display']['cycle_delay'])
             
-            # Show Native Matrix Animation between messages for fun
-            try:
-                payload = {
-                    "effect": "Matrix",
-                    "duration": 6
-                }
-                requests.post(f"{self.base_url}/notify", json=payload, timeout=2)
-                time.sleep(6) # Let the matrix run for its duration
-            except Exception as e:
-                self.logger.debug(f"Could not trigger matrix effect: {str(e)}")
-                pass
+            # Show Generative Liquid Animation
+            self.draw_liquid_animation(duration_sec=6)
             
         except Exception as e:
             self.logger.error(f"Error in display cycle: {str(e)}")
