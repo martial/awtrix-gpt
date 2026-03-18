@@ -335,6 +335,18 @@ class AwtrixManager:
             self.display_message(fragments)
             time.sleep(self.config['display']['cycle_delay'])
             
+            # Show Native Matrix Animation between messages for fun
+            try:
+                payload = {
+                    "effect": "Matrix",
+                    "duration": 6
+                }
+                requests.post(f"{self.base_url}/notify", json=payload, timeout=2)
+                time.sleep(6) # Let the matrix run for its duration
+            except Exception as e:
+                self.logger.debug(f"Could not trigger matrix effect: {str(e)}")
+                pass
+            
         except Exception as e:
             self.logger.error(f"Error in display cycle: {str(e)}")
 
