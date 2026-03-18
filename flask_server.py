@@ -15,7 +15,8 @@ from managers.display_manager import AwtrixManager
 from managers.camera_manager import CameraManager
 from managers.printer_manager import ThermalPrinterManager
 from thermalprinter import ThermalPrinter
-import urllib.request
+from google import genai
+from google.genai import types
 import base64 
 import json
 import traceback
@@ -659,24 +660,43 @@ def create_app():
             image_media_type = 'image/jpeg'
 
             # Prepare the messages payload
-            client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-            
-            # For Gemini, data must be raw bytes, not base64 string
-            import base64
-            image_bytes = base64.b64decode(image_data_base64)
-            
-            contents = [
-                types.Part.from_bytes(data=image_bytes, mime_type=image_media_type),
-                prompt_text
-            ]
-            
-            response = client.models.generate_content(
-                model="gemini-3.1-flash-lite-preview",
-                contents=contents,
-            )
+            ai_provider = config.get("ai_provider", "gemini")
+            ollama_host = config.get("ollama_host", "http://192.168.1.81:11434")
 
-            # Extract and parse response
-            raw_text = response.text.replace("```json", "").replace("```", "").strip()
+            if ai_provider == "ollama":
+                import urllib.request
+                import json
+                ollama_url = f"{ollama_host}/api/generate"
+                payload = {
+                    "model": "llama3.2",
+                    "prompt": prompt_text,
+                    "images": [image_data_base64] if image_data_base64 else [],
+                    "stream": False,
+                    "format": "json"
+                }
+                req = urllib.request.Request(ollama_url, data=json.dumps(payload).encode('utf-8'), headers={'Content-Type': 'application/json'})
+                with urllib.request.urlopen(req, timeout=120) as resp:
+                    result = json.loads(resp.read().decode('utf-8'))
+                    raw_text = result.get("response", "").replace("```json", "").replace("```", "").strip()
+            else:
+                client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+                
+                # For Gemini, data must be raw bytes, not base64 string
+                import base64
+                image_bytes = base64.b64decode(image_data_base64)
+                
+                contents = [
+                    types.Part.from_bytes(data=image_bytes, mime_type=image_media_type),
+                    prompt_text
+                ]
+                
+                response = client.models.generate_content(
+                    model="gemini-3.1-flash-lite-preview",
+                    contents=contents,
+                )
+    
+                # Extract and parse response
+                raw_text = response.text.replace("```json", "").replace("```", "").strip()
             
             try:
                 # Parse the JSON response
