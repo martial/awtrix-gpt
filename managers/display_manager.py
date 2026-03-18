@@ -105,7 +105,7 @@ class AwtrixManager:
         """Draw a liquid animation using vertical HTTP line draws (stable on 0.98 firmware)."""
         try:
             start_time = time.time()
-            fps = 5
+            fps = 2
             t = 0.0
             
             # Simple fallback temp
