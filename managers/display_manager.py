@@ -390,7 +390,7 @@ class AwtrixManager:
                 import json
                 ollama_url = f"{self.ollama_host}/api/generate"
                 payload = {
-                    "model": "llama3.2",
+                    "model": self.config.get("ollama_model", "llama3.2"),
                     "prompt": prompt,
                     "stream": False,
                     "format": "json"
