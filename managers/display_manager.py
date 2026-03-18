@@ -412,6 +412,23 @@ class AwtrixManager:
             self.display_message(fragments)
             time.sleep(self.config['display']['cycle_delay'])
             
+            # Show current temp & sea data before liquid animation
+            try:
+                marseille_weather = getattr(self, 'raw_weather', {}).get('MARSEILLE', {})
+                if marseille_weather:
+                    temp = int(marseille_weather.get('temp', 20))
+                    # Note: OpenWeatherMap standard endpoint doesn't give sea temperature.
+                    # As a funny estimate for the Mediterranean, we'll approximate based on air temp & month,
+                    # or just show the air temp for now.
+                    sea_temp = max(13, min(26, temp - 2)) # Very rough approximation
+                    
+                    msg = f"Marseille: {temp}C | Eau: ~{sea_temp}C"
+                    fragments = self.parse_and_highlight(msg)
+                    self.display_message(fragments, duration=4)
+                    time.sleep(4)
+            except Exception as e:
+                pass
+                
             # Show Generative Liquid Animation matching the current temperature
             self.draw_liquid_animation(duration_sec=6)
             
