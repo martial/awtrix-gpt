@@ -173,4 +173,4 @@ words:
 ai_provider: "ollama"
 ollama_host: "http://192.168.1.81:11434"
 
-ollama_model: "llama3.2"
+ollama_model: "qwen2.5"
