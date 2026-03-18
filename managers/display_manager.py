@@ -68,7 +68,8 @@ class AwtrixManager:
         self.last_news_call = datetime.min
         self.weather_rate_limit = timedelta(minutes=10)  # Minimum time between weather API calls
         self.news_rate_limit = timedelta(minutes=15)     # Minimum time between news API calls
-        self.message_queue = []
+                self.message_queue = []
+        self.raw_weather = {}
         
         self.logger.info(f"Initialized AWTRIX controller for {self.host}")
 
@@ -118,15 +119,35 @@ class AwtrixManager:
             except Exception:
                 pass
                 
+            # Get wind speed for Marseille to calculate wave height (swell/houle)
+            wind_speed = 2.0 # Default fallback
+            try:
+                marseille_weather = self.raw_weather.get('MARSEILLE', {})
+                if marseille_weather and 'wind_speed' in marseille_weather:
+                    wind_speed = float(marseille_weather['wind_speed'])
+            except Exception:
+                pass
+                
             # Hue mapping: 0C -> blue (0.6), 35C -> red/orange (0.05)
             base_hue = 0.6 - (max(min(temperature, 35), 0) / 35.0) * 0.55
+            
+            # Map wind speed (0 to 10+ m/s) to an amplitude multiplier (0.5 to 3.5)
+            amplitude = max(0.5, min((wind_speed / 10.0) * 3.0 + 0.5, 3.5))
+            # Also increase wave frequency slightly with wind
+            freq_mult = max(1.0, min(1.0 + (wind_speed / 20.0), 2.0))
             
             while time.time() - start_time < duration_sec:
                 draw_instructions = []
                 
                 for x in range(32):
-                    val = math.sin(x * 0.3 + t * 2.0)
-                    wave_height = int((val + 1) * 3) + 2
+                    # Higher wind = faster and taller waves
+                    val = math.sin(x * 0.3 * freq_mult + t * 2.0 * freq_mult)
+                    
+                    # Base water level is 2, plus amplitude
+                    wave_height = int((val + 1) * amplitude) + 2
+                    
+                    # Cap wave height to not exceed screen height (8)
+                    wave_height = max(1, min(wave_height, 8))
                     
                     hue = (base_hue + (math.sin(x * 0.1 + t) * 0.05)) % 1.0
                     r, g, b = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
@@ -196,6 +217,7 @@ class AwtrixManager:
                 weather_data[city_key] = None
         
         self.last_weather_call = now
+        self.raw_weather = weather_data
         return weather_data
     
     def format_weather_data(self, weather: Dict) -> str:
