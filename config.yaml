@@ -91,11 +91,11 @@ weather:
       lat: 39.1328
       lon: 16.0803
       name: Amantea
-    LYON:
+    MARSEILLE:
       language: fr
-      lat: 45.764
-      lon: 4.8357
-      name: Lyon
+      lat: 43.2965
+      lon: 5.3698
+      name: Marseille
 words:
   activities:
   - moto
@@ -109,15 +109,15 @@ words:
   - cafe
   - caffe
   adjectives:
-  - lyonnais
-  - lyonnaise
+  - marseillenais
+  - marseillenaise
   - calabrese
   - italien
   - francais
   - bella
   - bello
   cities:
-  - lyon
+  - marseille
   - amantea
   - saint
   - rambert
