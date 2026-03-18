@@ -28,6 +28,12 @@ class ThermalPrinterManager:
     def initialize_printer(self):
         """Initialize the thermal printer with specified settings"""
         try:
+            import os
+            if not os.path.exists(self.config['printer']['port']):
+                print(f"Warning: Printer port {self.config['printer']['port']} not found. Printer disabled.")
+                self.is_initialized = False
+                return
+            
             self.printer = ThermalPrinter(
                 port=self.config['printer']['port'],  # '/dev/ttyUSB0' for example
                 baudrate=self.config['printer']['baudrate'],  # 9600 usually
