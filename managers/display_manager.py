@@ -64,7 +64,8 @@ class AwtrixManager:
         self.last_weather_call = datetime.min
         self.last_news_call = datetime.min
         self.weather_rate_limit = timedelta(minutes=10)  # Minimum time between weather API calls
-        self.news_rate_limit = timedelta(minutes=15)     # Minimum time between news API calls
+                self.news_rate_limit = timedelta(minutes=15)     # Minimum time between news API calls
+        self.message_queue = []
         
         self.logger.info(f"Initialized AWTRIX controller for {self.host}")
 
@@ -250,7 +251,7 @@ class AwtrixManager:
         try:
             # Get current weather
             weather = self.get_weather()
-            lyon_weather = self.format_weather_data(weather.get('LYON', {}))
+            marseille_weather = self.format_weather_data(weather.get('MARSEILLE', {}))
             amantea_weather = self.format_weather_data(weather.get('AMANTEA', {}))
 
             # Get French news headlines
@@ -265,7 +266,7 @@ class AwtrixManager:
             # Format the prompt with current data
             prompt = self.prompt_template.format(
                 timestamp=timestamp,
-                lyon_weather=lyon_weather,
+                marseille_weather=marseille_weather,
                 amantea_weather=amantea_weather,
                 french_news=french_news
             )
@@ -300,28 +301,33 @@ class AwtrixManager:
     def _set_fallback_content(self):
         """Set fallback content in case of errors"""
         self.messages = [{"id": "M1", "text": "Elisa et Marziol, amoureux des petites joies"}]
-        self.weather = [{"id": "W1", "text": "Il fait doux a Lyon et ensoleille a Amantea"}]
+        self.weather = [{"id": "W1", "text": "Il fait doux a Marseille et ensoleille a Amantea"}]
         self.news = [{"id": "N1", "text": "Les actualites du jour"}]
         self.suggested_activities = [{"id": "A1", "text": "Un petit smoothie ensemble?"}]
-        self.poems = [{"id": "P1", "text": "Lyon Amantea, deux coeurs unis"}]
+        self.poems = [{"id": "P1", "text": "Marseille Amantea, deux coeurs unis"}]
 
     def display_cycle(self):
-        """Display messages with configured delay"""
+        """Display messages sequentially from a shuffled queue for better flow"""
         if not all([self.messages, self.weather, self.news, self.suggested_activities, self.poems]):
             self.logger.warning("No content available for display")
             return
-
-        # Combine all content types
-        all_content = (self.messages + self.weather + self.news + 
-                      self.suggested_activities + self.poems)
-        
+            
         try:
-            item = random.choice(all_content)
+            # If queue is empty, refill and shuffle it
+            if not getattr(self, 'message_queue', None):
+                self.message_queue = (self.messages + self.weather + self.news + 
+                                     self.suggested_activities + self.poems)
+                random.shuffle(self.message_queue)
+                
+            # Pop the next message from the queue
+            item = self.message_queue.pop(0)
             text = item.get("text", "")
-            self.logger.debug(f"Displaying: {text}")
+            
+            self.logger.debug(f"Displaying ({len(self.message_queue)} remaining in queue): {text}")
             fragments = self.parse_and_highlight(text)
             self.display_message(fragments)
             time.sleep(self.config['display']['cycle_delay'])
+            
         except Exception as e:
             self.logger.error(f"Error in display cycle: {str(e)}")
 
