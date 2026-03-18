@@ -1,7 +1,7 @@
 import re
 import requests
 import time
-from anthropic import Anthropic
+from google import genai
 from dotenv import load_dotenv
 import os
 from datetime import date
@@ -44,7 +44,7 @@ class AwtrixManager:
         self.news_api_key = os.getenv('NEWS_API_KEY')  # Added news API key
         
         # Initialize Claude
-        self.claude = Anthropic(api_key=self.anthropic_api_key)
+        self.client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
         
         # Load prompt template
         self.prompt_template = self.load_prompt_template()
@@ -271,14 +271,10 @@ class AwtrixManager:
             )
 
             print(prompt)
-            response = self.claude.messages.create(
-                model="claude-3-5-sonnet-latest",
-                max_tokens=2000,
-                messages=[{"role": "user", "content": prompt}]
-            )
+            response = self.client.models.generate_content(model="gemini-3.1-flash-lite", contents=prompt)
 
             # Parse JSON response
-            data = json.loads(response.content[0].text.strip())
+            data = json.loads(response.text.replace("```json", "").replace("```", "").strip())
             print(data)
             # Convert simple strings to dictionaries with id and text fields
             def format_messages(messages, prefix):
