@@ -1,7 +1,8 @@
 import re
 import requests
 import time
-
+from google import genai
+from google.genai import types
 from dotenv import load_dotenv
 import os
 from datetime import date
@@ -45,8 +46,10 @@ class AwtrixManager:
         self.anthropic_api_key = os.getenv('ANTHROPIC_API_KEY')
         self.news_api_key = os.getenv('NEWS_API_KEY')  # Added news API key
         
-        # Initialize Claude
-        # self.client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+        self.ai_provider = self.config.get("ai_provider", "gemini")
+        self.ollama_host = self.config.get("ollama_host", "http://192.168.1.81:11434")
+        if self.ai_provider == "gemini":
+            self.client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
         
         # Load prompt template
         self.prompt_template = self.load_prompt_template()
@@ -381,21 +384,31 @@ class AwtrixManager:
             )
 
             print(prompt)
-            # Make HTTP call to local Ollama on the Mac (Llama 3.2 8B)
-            ollama_url = "http://192.168.1.81:11434/api/generate"
-            payload = {
-                "model": "llama3.2",
-                "prompt": prompt,
-                "stream": False,
-                "format": "json"
-            }
             
-            import urllib.request
-            req = urllib.request.Request(ollama_url, data=json.dumps(payload).encode('utf-8'), headers={'Content-Type': 'application/json'})
-            with urllib.request.urlopen(req, timeout=120) as resp:
-                result = json.loads(resp.read().decode('utf-8'))
-                raw_text = result.get("response", "").replace("```json", "").replace("```", "").strip()
-            
+            if self.ai_provider == "ollama":
+                import urllib.request
+                import json
+                ollama_url = f"{self.ollama_host}/api/generate"
+                payload = {
+                    "model": "llama3.2",
+                    "prompt": prompt,
+                    "stream": False,
+                    "format": "json"
+                }
+                req = urllib.request.Request(ollama_url, data=json.dumps(payload).encode('utf-8'), headers={'Content-Type': 'application/json'})
+                with urllib.request.urlopen(req, timeout=120) as resp:
+                    result = json.loads(resp.read().decode('utf-8'))
+                    raw_text = result.get("response", "").replace("```json", "").replace("```", "").strip()
+            else:
+                response = self.client.models.generate_content(
+                    model="gemini-3.1-flash-lite-preview", 
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        tools=[{"google_search": {}}]
+                    )
+                )
+                raw_text = response.text.replace("```json", "").replace("```", "").strip()
+
             # Parse JSON response
             data = json.loads(raw_text)
             print(data)
