@@ -271,7 +271,7 @@ class AwtrixManager:
             )
 
             print(prompt)
-            response = self.client.models.generate_content(model="gemini-3.1-flash-lite", contents=prompt)
+            response = self.client.models.generate_content(model="gemini-3.1-flash-lite-preview", contents=prompt)
 
             # Parse JSON response
             data = json.loads(response.text.replace("```json", "").replace("```", "").strip())
