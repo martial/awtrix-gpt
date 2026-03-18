@@ -46,7 +46,7 @@ class AwtrixManager:
         self.news_api_key = os.getenv('NEWS_API_KEY')  # Added news API key
         
         # Initialize Claude
-        self.client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+        # self.client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
         
         # Load prompt template
         self.prompt_template = self.load_prompt_template()
