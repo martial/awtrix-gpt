@@ -146,8 +146,9 @@ class AwtrixManager:
                 t += 0.5
                 time.sleep(1.0 / fps)
                 
-            # Clear app memory
-            requests.post(f"{self.base_url}/custom?name=liquid", json={}, timeout=1)
+            # Release the screen gracefully by sending an empty string to custom
+            requests.post(f"{self.base_url}/custom?name=liquid", json={"text": ""}, timeout=1)
+            time.sleep(0.5)
         except Exception as e:
             self.logger.error(f"HTTP liquid error: {e}")
 
