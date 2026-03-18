@@ -15,7 +15,8 @@ from managers.display_manager import AwtrixManager
 from managers.camera_manager import CameraManager
 from managers.printer_manager import ThermalPrinterManager
 from thermalprinter import ThermalPrinter
-from anthropic import Anthropic
+from google import genai
+from google.genai import types
 import base64 
 import json
 import traceback
@@ -659,35 +660,24 @@ def create_app():
             image_media_type = 'image/jpeg'
 
             # Prepare the messages payload
-            messages = [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": image_media_type,
-                                "data": image_data_base64,
-                            },
-                        },
-                        {
-                            "type": "text",
-                            "text": prompt_text
-                        }
-                    ]
-                }
+            client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+            
+            # For Gemini, data must be raw bytes, not base64 string
+            import base64
+            image_bytes = base64.b64decode(image_data_base64)
+            
+            contents = [
+                types.Part.from_bytes(data=image_bytes, mime_type=image_media_type),
+                prompt_text
             ]
-            anthropic = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-
-            response = anthropic.messages.create(
-                model="claude-3-5-sonnet-20241022",
-                max_tokens=1024,
-                messages=messages
+            
+            response = client.models.generate_content(
+                model="gemini-3.1-flash-lite",
+                contents=contents,
             )
 
             # Extract and parse response
-            raw_text = response.content[0].text.strip()
+            raw_text = response.text.replace("```json", "").replace("```", "").strip()
             
             try:
                 # Parse the JSON response
