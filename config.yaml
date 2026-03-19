@@ -24,7 +24,7 @@ display:
   debug: true
   host: 192.168.1.101
   message_duration: 15
-  update_interval: 43200
+  update_interval: 1800
 printer:
   baudrate: 9600
   heat_dots: 7
