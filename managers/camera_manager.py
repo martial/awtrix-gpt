@@ -5,68 +5,71 @@ from datetime import datetime
 from typing import Optional, Tuple
 import threading
 import time
-import yaml
+
+from config_loader import load_config
+
 
 class CameraManager:
     def __init__(self):
         """Initialize camera manager"""
         self.logger = logging.getLogger(__name__)
-        
-        # Load configuration
-        try:
-            with open('config.yaml', 'r') as file:
-                self.config = yaml.safe_load(file)
-        except Exception as e:
-            self.logger.error(f"Error loading config: {str(e)}")
-            raise
+        self.config = load_config()
 
         self.camera: Optional[cv2.VideoCapture] = None
         self.lock = threading.Lock()
-        self.is_initialized = False  # Flag to track initialization status
-        
+        self.is_initialized = False
+
         # Create photos directory
-        self.photos_dir = os.path.join(os.path.dirname(__file__), 
-                                     self.config['camera']['settings']['photo_directory'])
+        self.photos_dir = os.path.join(os.path.dirname(__file__),
+                                       self.config['camera']['settings']['photo_directory'])
         os.makedirs(self.photos_dir, exist_ok=True)
-        
+
         # Initialize camera
         self.initialize_camera()
 
     @staticmethod
     def list_available_cameras():
+        """List available cameras with metadata for the config UI."""
         available_cameras = []
         for i in range(10):
             try:
                 cap = cv2.VideoCapture(i)
                 if cap.isOpened():
-                    available_cameras.append(i)
+                    backend = cap.getBackendName()
+                    w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                    h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    fps = cap.get(cv2.CAP_PROP_FPS)
+                    available_cameras.append({
+                        'index': i,
+                        'name': f'Camera {i}',
+                        'backend': backend,
+                        'resolution': f'{w}x{h}',
+                        'fps': round(fps, 1) if fps > 0 else 'N/A'
+                    })
                 cap.release()
-            except:
+            except Exception:
                 pass
         return available_cameras
-
 
     def initialize_camera(self):
         """Initialize the camera with specified settings"""
         with self.lock:
             if self.is_initialized:
                 self.logger.info("Camera is already initialized.")
-                return  # Avoid reinitializing if already done
-            
+                return
+
             try:
                 if self.camera is not None:
                     self.camera.release()
-                
-                # Initialize new camera
+
                 self.camera = cv2.VideoCapture(self.config['camera']['index'])
-                time.sleep(2)  # Wait for camera to initialize
-                
+                time.sleep(2)
+
                 if not self.camera.isOpened():
-                    print(f"Warning: Failed to open camera at index {self.config['camera']['index']}")
+                    self.logger.warning(f"Failed to open camera at index {self.config['camera']['index']}")
                     self.camera = None
                     return
 
-                # Set default resolution if specified
                 width = self.config['camera']['resolution'].get('width', 640)
                 height = self.config['camera']['resolution'].get('height', 480)
                 self.camera.set(cv2.CAP_PROP_FRAME_WIDTH, width)
@@ -76,15 +79,15 @@ class CameraManager:
                 ret, _ = self.camera.read()
                 if not ret:
                     raise Exception("Camera initialized but failed to capture test frame")
-                
-                self.is_initialized = True  # Set the flag to True after successful initialization
-                
+
+                self.is_initialized = True
+
             except Exception as e:
                 self.logger.error(f"Error initializing camera: {str(e)}")
                 if self.camera is not None:
                     self.camera.release()
                     self.camera = None
-                self.is_initialized = False  # Reset flag on failure
+                self.is_initialized = False
                 raise
 
     def take_picture(self, filename: Optional[str] = None) -> Optional[str]:
@@ -94,30 +97,23 @@ class CameraManager:
                 if not self.is_initialized:
                     self.initialize_camera()
 
-                # Read a frame
                 ret, frame = self.camera.read()
                 if not ret or frame is None:
                     raise Exception("Failed to capture frame.")
 
-                # Generate filename if not provided
                 if filename is None:
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     filename = f"photo_{timestamp}.jpg"
 
-                # Full path for the file
                 filepath = os.path.join(self.photos_dir, filename)
-
-                # Save the image
                 cv2.imwrite(filepath, frame)
                 self.logger.info(f"Picture saved to {filepath}")
-
                 return filepath
 
             except Exception as e:
                 self.logger.error(f"Error taking picture: {str(e)}")
                 return None
 
-        # In camera_manager.py (CameraManager class)
     def get_preview_frame(self) -> tuple[Optional[bytes], Optional[bytes]]:
         """Get a single frame as JPEG bytes for preview, returns (original, thresholded)"""
         with self.lock:
@@ -125,56 +121,38 @@ class CameraManager:
                 if not self.is_initialized:
                     self.initialize_camera()
 
-                # Add buffer clearing loop
-                for _ in range(5):  # Flush the buffer by reading a few frames
+                for _ in range(5):
                     self.camera.read()
-                    
+
                 ret, frame = self.camera.read()
                 if not ret or frame is None:
                     raise Exception("Failed to capture preview frame.")
 
-                # Save the original unrotated frame
                 original = frame.copy()
-                
-                # Rotate frame for processing
                 frame = cv2.rotate(frame, cv2.ROTATE_180)
-                
-                # Convert to grayscale
+
                 gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                
-                # Apply Gaussian blur to reduce noise
                 blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-                
-                # Apply adaptive thresholding
                 threshold = cv2.adaptiveThreshold(
-                    blurred,
-                    255,
+                    blurred, 255,
                     cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                     cv2.THRESH_BINARY,
-                    51,  # block size - must be odd number
-                    2    # constant subtracted from mean
+                    51, 2
                 )
-                
-                # Save original and processed images for debugging
+
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 debug_dir = os.path.join(self.photos_dir, 'debug')
                 os.makedirs(debug_dir, exist_ok=True)
-                
-                # Save original unrotated
+
                 original_path = os.path.join(debug_dir, f'original_{timestamp}.jpg')
                 cv2.imwrite(original_path, original)
-                
-                # Save thresholded
                 threshold_path = os.path.join(debug_dir, f'threshold_{timestamp}.jpg')
                 cv2.imwrite(threshold_path, threshold)
-                
-                # Log the paths for debugging
                 self.logger.info(f"Saved debug images: \nOriginal: {original_path}\nThreshold: {threshold_path}")
 
-                # Encode both frames as JPEG
-                _, original_buffer = cv2.imencode('.jpg', original)  # Original unrotated
-                _, threshold_buffer = cv2.imencode('.jpg', threshold)  # Processed and rotated
-                
+                _, original_buffer = cv2.imencode('.jpg', original)
+                _, threshold_buffer = cv2.imencode('.jpg', threshold)
+
                 return original_buffer.tobytes(), threshold_buffer.tobytes()
 
             except Exception as e:
@@ -187,9 +165,9 @@ class CameraManager:
             if self.camera is not None:
                 self.camera.release()
                 self.camera = None
-                self.is_initialized = False  # Reset flag when camera is released
+                self.is_initialized = False
                 self.logger.info("Camera released")
-                
+
     def __del__(self):
         """Destructor to ensure camera is properly released"""
         self.close()
