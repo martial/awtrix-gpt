@@ -3,420 +3,739 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AWTRIX Configuration</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <title>AWTRIX — Elisa, Marziol & Leontine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                colors: {
+                    'led-bg': '#0f0f1a',
+                    'led-surface': '#1a1a2e',
+                    'led-border': '#2a2a4a',
+                    'led-hover': '#252542',
+                    'led-amber': '#FFA500',
+                    'led-pink': '#FF69B4',
+                    'led-blue': '#1E90FF',
+                    'led-green': '#32CD32',
+                    'led-gold': '#FFD700',
+                    'led-cyan': '#00BFFF',
+                    'led-red': '#FF4444',
+                    'led-text': '#e0e0e0',
+                    'led-muted': '#888888',
+                }
+            }
+        }
+    }
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.4.12/ace.js"></script>
+    <style>
+        @keyframes scroll-led {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        .led-scroll { animation: scroll-led 20s linear infinite; }
+        .led-display {
+            font-family: 'Courier New', monospace;
+            letter-spacing: 2px;
+            text-shadow: 0 0 8px currentColor;
+        }
+        .tab-active {
+            border-bottom: 2px solid #FFA500;
+            color: #FFA500 !important;
+        }
+        .glow-green { color: #32CD32; text-shadow: 0 0 6px #32CD32; }
+        .glow-red { color: #FF4444; text-shadow: 0 0 6px #FF4444; }
+        .glow-amber { color: #FFA500; text-shadow: 0 0 6px #FFA500; }
+        .card {
+            background: #1a1a2e;
+            border: 1px solid #2a2a4a;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+        }
+        input[type="text"], input[type="number"], select, textarea {
+            background: #0f0f1a !important;
+            border: 1px solid #2a2a4a !important;
+            color: #e0e0e0 !important;
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.75rem;
+        }
+        input[type="text"]:focus, input[type="number"]:focus, select:focus, textarea:focus {
+            border-color: #FFA500 !important;
+            outline: none;
+            box-shadow: 0 0 0 1px #FFA50040;
+        }
+        input[type="color"] {
+            background: #0f0f1a;
+            border: 1px solid #2a2a4a;
+            border-radius: 0.375rem;
+            cursor: pointer;
+        }
+        input[type="checkbox"] {
+            accent-color: #FFA500;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #FFA500, #FF8C00);
+            color: #0f0f1a;
+            font-weight: 600;
+            padding: 0.5rem 1.25rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+        }
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-secondary {
+            background: #2a2a4a;
+            color: #e0e0e0;
+            padding: 0.5rem 1.25rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+        }
+        .btn-secondary:hover { background: #3a3a5a; }
+        .btn-green {
+            background: linear-gradient(135deg, #32CD32, #228B22);
+            color: #0f0f1a;
+            font-weight: 600;
+            padding: 0.5rem 1.25rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+        }
+        .btn-green:hover { opacity: 0.9; }
+        #prompt-editor {
+            border: 1px solid #2a2a4a;
+            border-radius: 0.5rem;
+        }
+        .stat-card {
+            background: #1a1a2e;
+            border: 1px solid #2a2a4a;
+            border-radius: 0.75rem;
+            padding: 1rem 1.25rem;
+        }
+        .stat-value { font-size: 1.5rem; font-weight: 700; }
+        .stat-label { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
+    </style>
 </head>
-<body class="bg-gray-100">
+<body class="bg-led-bg text-led-text min-h-screen">
     <!-- Notification Toast -->
-    <div id="notification" class="fixed top-4 right-4 max-w-sm bg-green-500 text-white p-4 rounded-lg shadow-lg transform transition-transform duration-300 translate-y-[-150%]">
+    <div id="notification" class="fixed top-4 right-4 max-w-sm p-4 rounded-lg shadow-lg transform transition-all duration-300 -translate-y-32 opacity-0 z-50">
         <div class="flex items-center">
-            <div class="flex-grow" id="notification-message"></div>
-            <button onclick="hideNotification()" class="ml-4 text-white hover:text-gray-200">×</button>
+            <div class="flex-grow text-sm font-medium" id="notification-message"></div>
+            <button onclick="hideNotification()" class="ml-4 hover:opacity-70 text-lg leading-none">&times;</button>
         </div>
     </div>
 
-    <div class="container mx-auto px-4 py-8">
-        <h1 class="text-3xl font-bold mb-8">AWTRIX Configuration</h1>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <!-- Prompt Template Editor -->
-            <div class="bg-white p-6 rounded-lg shadow md:col-span-2">
-                <h2 class="text-xl font-semibold mb-4">Prompt Template</h2>
-                <div id="prompt-editor" class="w-full h-96 border rounded mb-4"></div>
-                <button onclick="savePromptTemplate()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                    Save Prompt Template
-                </button>
+    <!-- Header -->
+    <header class="border-b border-led-border bg-led-surface/60 backdrop-blur-sm sticky top-0 z-40">
+        <div class="max-w-6xl mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-xl font-bold led-display glow-amber tracking-wider">AWTRIX</h1>
+                    <p class="text-xs text-led-muted mt-0.5">Elisa, Marziol & Leontine — Marseille</p>
+                </div>
+                <div class="flex items-center gap-2 text-sm">
+                    <span id="status-dot" class="inline-block w-2 h-2 rounded-full bg-led-muted"></span>
+                    <span id="status-text" class="text-led-muted">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Tab Navigation -->
+    <nav class="border-b border-led-border bg-led-surface/30 sticky top-[57px] z-30">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="flex gap-1 overflow-x-auto scrollbar-hide -mb-px" id="tab-nav">
+                <button class="tab-btn tab-active px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 border-transparent" data-tab="dashboard">Dashboard</button>
+                <button class="tab-btn px-4 py-3 text-sm font-medium whitespace-nowrap text-led-muted hover:text-led-amber transition-colors border-b-2 border-transparent" data-tab="prompt">Prompt</button>
+                <button class="tab-btn px-4 py-3 text-sm font-medium whitespace-nowrap text-led-muted hover:text-led-amber transition-colors border-b-2 border-transparent" data-tab="display">Display</button>
+                <button class="tab-btn px-4 py-3 text-sm font-medium whitespace-nowrap text-led-muted hover:text-led-amber transition-colors border-b-2 border-transparent" data-tab="colors-words">Colors & Words</button>
+                <button class="tab-btn px-4 py-3 text-sm font-medium whitespace-nowrap text-led-muted hover:text-led-amber transition-colors border-b-2 border-transparent" data-tab="camera">Camera</button>
+                <button class="tab-btn px-4 py-3 text-sm font-medium whitespace-nowrap text-led-muted hover:text-led-amber transition-colors border-b-2 border-transparent" data-tab="weather">Weather</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto px-4 py-6">
+
+        <!-- ==================== DASHBOARD TAB ==================== -->
+        <section id="tab-dashboard" class="tab-panel space-y-6">
+            <!-- LED Preview Strip -->
+            <div class="bg-black rounded-xl p-4 overflow-hidden border border-led-border">
+                <div class="led-display text-led-amber text-lg whitespace-nowrap overflow-hidden">
+                    <span class="led-scroll inline-block" id="led-preview-text">Elisa et Marziol, amoureux des petites joies de la vie...</span>
+                </div>
             </div>
 
-            <!-- Display Settings -->
-            <div class="bg-white p-6 rounded-lg shadow">
-                <h2 class="text-xl font-semibold mb-4">Display Settings</h2>
-                <form action="/api/config/display" method="POST" class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium mb-1">Host</label>
-                        <input type="text" name="host" value="{{ config.display.host }}" 
-                               class="w-full p-2 border rounded">
-                    </div>
-                    <div class="flex space-x-4">
-                        <div class="flex-1">
-                            <label class="block text-sm font-medium mb-1">Start Hour</label>
-                            <input type="number" name="start_hour" value="{{ config.display.active_hours.start }}" 
-                                   min="0" max="23" class="w-full p-2 border rounded">
+            <!-- Status Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="stat-card">
+                    <div class="stat-label">Status</div>
+                    <div id="dash-status" class="stat-value glow-green">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Host</div>
+                    <div id="dash-host" class="stat-value text-led-cyan text-base mt-1">--</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Poems</div>
+                    <div id="dash-poems" class="stat-value text-led-pink">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Weather</div>
+                    <div id="dash-weather" class="stat-value text-led-blue">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Messages</div>
+                    <div id="dash-messages" class="stat-value text-led-amber">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Queue</div>
+                    <div id="dash-queue" class="stat-value text-led-gold">0</div>
+                </div>
+                <div class="stat-card md:col-span-2">
+                    <div class="stat-label">Last Update</div>
+                    <div id="dash-update" class="stat-value text-led-muted text-base mt-1">--</div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card">
+                <h3 class="text-sm font-semibold text-led-muted uppercase tracking-wider mb-4">Quick Actions</h3>
+                <div class="flex flex-wrap gap-3">
+                    <div class="flex-1 min-w-[200px]">
+                        <div class="flex gap-2">
+                            <input type="text" id="test-message-input" placeholder="Type a message..."
+                                   class="flex-1 text-sm">
+                            <button onclick="sendTestMessage()" class="btn-primary text-sm whitespace-nowrap">Send</button>
                         </div>
-                        <div class="flex-1">
-                            <label class="block text-sm font-medium mb-1">End Hour</label>
-                            <input type="number" name="end_hour" value="{{ config.display.active_hours.end }}" 
-                                   min="0" max="23" class="w-full p-2 border rounded">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== PROMPT TAB ==================== -->
+        <section id="tab-prompt" class="tab-panel hidden space-y-4">
+            <div class="card">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold text-led-amber">Prompt Template</h2>
+                    <button onclick="savePromptTemplate()" class="btn-primary text-sm">Save Template</button>
+                </div>
+                <div id="prompt-editor" class="w-full rounded-lg" style="height: 70vh;"></div>
+            </div>
+        </section>
+
+        <!-- ==================== DISPLAY TAB ==================== -->
+        <section id="tab-display" class="tab-panel hidden">
+            <div class="card max-w-xl">
+                <h2 class="text-lg font-semibold text-led-amber mb-6">Display Settings</h2>
+                <form id="form-display" action="/api/config/display" method="POST" class="space-y-5">
+                    <div>
+                        <label class="block text-sm text-led-muted mb-1.5">Host</label>
+                        <input type="text" name="host" value="{{ config.display.host }}" class="w-full">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm text-led-muted mb-1.5">Start Hour</label>
+                            <input type="number" name="start_hour" value="{{ config.display.active_hours.start }}"
+                                   min="0" max="23" class="w-full">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-led-muted mb-1.5">End Hour</label>
+                            <input type="number" name="end_hour" value="{{ config.display.active_hours.end }}"
+                                   min="0" max="23" class="w-full">
                         </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium mb-1">Message Duration (seconds)</label>
-                        <input type="number" name="message_duration" value="{{ config.display.message_duration }}" 
-                               class="w-full p-2 border rounded">
+                        <label class="block text-sm text-led-muted mb-1.5">Message Duration (seconds)</label>
+                        <input type="number" name="message_duration" value="{{ config.display.message_duration }}"
+                               class="w-full">
                     </div>
-                    <div class="flex items-center">
-                        <input type="checkbox" name="debug" id="debug" {% if config.display.debug %}checked{% endif %} 
-                               class="mr-2">
-                        <label for="debug">Debug Mode</label>
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" name="debug" id="debug" {% if config.display.debug %}checked{% endif %}>
+                        <label for="debug" class="text-sm">Debug Mode</label>
                     </div>
-                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                        Save Display Settings
-                    </button>
+                    <button type="submit" class="btn-primary">Save Display Settings</button>
                 </form>
             </div>
+        </section>
 
-            <!-- Colors -->
-            <div class="bg-white p-6 rounded-lg shadow">
-                <h2 class="text-xl font-semibold mb-4">Color Settings</h2>
-                <form action="/api/config/colors" method="POST" class="space-y-4">
-                    {% for category, color in config.colors.items() %}
-                    <div>
-                        <label class="block text-sm font-medium mb-1">{{ category|title }}</label>
-                        <div class="flex space-x-2">
-                            <input type="color" name="{{ category }}_color" value="{{ color }}" 
-                                   class="h-10 w-20">
-                            <input type="text" name="{{ category }}_hex" value="{{ color }}" 
-                                   class="flex-1 p-2 border rounded">
+        <!-- ==================== COLORS & WORDS TAB ==================== -->
+        <section id="tab-colors-words" class="tab-panel hidden space-y-6">
+            <!-- Live Preview -->
+            <div class="card">
+                <h3 class="text-sm font-semibold text-led-muted uppercase tracking-wider mb-3">Live Preview</h3>
+                <input type="text" id="preview-input"
+                       placeholder="Type a message to see how colors will look on the display..."
+                       value="Elisa et Marziol sous le soleil de Marseille, 25 degres et bonheur"
+                       class="w-full text-sm mb-3">
+                <div class="bg-black rounded-lg p-4 min-h-[3rem] flex items-center overflow-x-auto">
+                    <div id="preview-output" class="led-display text-lg whitespace-nowrap"></div>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <!-- Colors -->
+                <div class="card">
+                    <h2 class="text-lg font-semibold text-led-amber mb-4">Colors</h2>
+                    <form id="form-colors" action="/api/config/colors" method="POST" class="space-y-3">
+                        {% for category, color in config.colors.items() %}
+                        <div class="flex items-center gap-3">
+                            <input type="color" name="{{ category }}_color" value="{{ color }}"
+                                   class="h-8 w-10 flex-shrink-0" data-color-category="{{ category }}">
+                            <input type="text" name="{{ category }}_hex" value="{{ color }}"
+                                   class="flex-1 text-sm font-mono" data-hex-category="{{ category }}">
+                            <span class="text-xs text-led-muted w-20 text-right">{{ category }}</span>
+                        </div>
+                        {% endfor %}
+                        <button type="submit" class="btn-primary w-full mt-4">Save Colors</button>
+                    </form>
+                </div>
+
+                <!-- Words -->
+                <div class="card">
+                    <h2 class="text-lg font-semibold text-led-amber mb-4">Word Categories</h2>
+                    <form id="form-words" action="/api/config/words" method="POST" class="space-y-3">
+                        {% for category, words in config.words.items() %}
+                        <div>
+                            <label class="block text-xs text-led-muted mb-1">
+                                <span class="inline-block w-2 h-2 rounded-full mr-1" style="background: {{ config.colors[category] if category in config.colors else '#fff' }}"></span>
+                                {{ category }}
+                            </label>
+                            <textarea name="{{ category }}_words" rows="2"
+                                      class="w-full text-sm" data-words-category="{{ category }}">{{ words|join(', ') }}</textarea>
+                        </div>
+                        {% endfor %}
+                        <button type="submit" class="btn-primary w-full mt-4">Save Words</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== CAMERA TAB ==================== -->
+        <section id="tab-camera" class="tab-panel hidden space-y-6">
+            <!-- Available Cameras -->
+            <div class="card">
+                <h3 class="text-sm font-semibold text-led-muted uppercase tracking-wider mb-3">Available Cameras</h3>
+                {% if available_cameras %}
+                <div class="grid gap-2">
+                    {% for camera in available_cameras %}
+                    <div class="flex items-center justify-between p-3 rounded-lg border
+                                {% if config.camera.index == camera.index %}border-led-amber bg-led-amber/5{% else %}border-led-border bg-led-bg{% endif %}">
+                        <div>
+                            <span class="font-medium text-sm">{{ camera.name }}</span>
+                            <span class="text-xs text-led-muted ml-2">{{ camera.backend }} &middot; {{ camera.resolution }} &middot; {{ camera.fps }} fps</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm">
+                            <span class="text-led-muted">Index {{ camera.index }}</span>
+                            {% if config.camera.index == camera.index %}
+                            <span class="px-2 py-0.5 bg-led-amber/20 text-led-amber rounded text-xs font-medium">Active</span>
+                            {% endif %}
                         </div>
                     </div>
                     {% endfor %}
-                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                        Save Colors
-                    </button>
-                </form>
+                </div>
+                {% else %}
+                <p class="text-led-muted text-sm">No cameras detected</p>
+                {% endif %}
             </div>
 
-            <!-- Word Categories -->
-            <div class="bg-white p-6 rounded-lg shadow">
-                <h2 class="text-xl font-semibold mb-4">Word Categories</h2>
-                <form action="/api/config/words" method="POST" class="space-y-4">
-                    {% for category, words in config.words.items() %}
-                    <div>
-                        <label class="block text-sm font-medium mb-1">{{ category|title }}</label>
-                        <textarea name="{{ category }}_words" rows="3" 
-                                class="w-full p-2 border rounded">{{ words|join(', ') }}</textarea>
+            <div class="grid md:grid-cols-2 gap-6">
+                <!-- Preview -->
+                <div class="card">
+                    <h2 class="text-lg font-semibold text-led-amber mb-4">Camera Preview</h2>
+                    <div class="aspect-video bg-black rounded-lg overflow-hidden border border-led-border">
+                        <img id="cameraPreview" src="/api/camera/preview" alt="Camera preview"
+                             class="w-full h-full object-contain">
                     </div>
-                    {% endfor %}
-                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                        Save Words
-                    </button>
-                </form>
-            </div>
+                    <div class="flex gap-3 mt-4">
+                        <button type="button" onclick="refreshPreview()" class="btn-secondary flex-1 text-sm">
+                            Refresh Preview
+                        </button>
+                        <button type="button" onclick="takeSnapshot()" class="btn-green flex-1 text-sm">
+                            Take Snapshot
+                        </button>
+                    </div>
+                    <div id="latestSnapshot" class="hidden mt-4">
+                        <div class="text-xs text-led-muted mb-2">Latest snapshot</div>
+                        <div class="aspect-video bg-black rounded-lg overflow-hidden border border-led-border">
+                            <img id="snapshotPreview" src="" alt="Latest snapshot"
+                                 class="w-full h-full object-contain">
+                        </div>
+                        <div class="mt-2 text-xs text-led-muted">
+                            Saved as: <span id="snapshotFilename" class="font-mono text-led-text"></span>
+                        </div>
+                    </div>
+                </div>
 
-            <!-- Weather Cities -->
-            <div class="bg-white p-6 rounded-lg shadow">
-                <h2 class="text-xl font-semibold mb-4">Weather Cities</h2>
-                <form action="/api/config/weather" method="POST" class="space-y-4">
-                    {% for city_key, city in config.weather.cities.items() %}
-                    <div class="border p-4 rounded">
-                        <h3 class="font-medium mb-2">{{ city_key }}</h3>
+                <!-- Configuration -->
+                <div class="card">
+                    <h2 class="text-lg font-semibold text-led-amber mb-4">Camera Configuration</h2>
+                    <form id="form-camera" action="/api/config/camera" method="POST" class="space-y-4">
+                        <div>
+                            <label class="block text-sm text-led-muted mb-1.5">Camera Index</label>
+                            <select name="camera_index" class="w-full">
+                                {% for camera in available_cameras %}
+                                <option value="{{ camera.index }}" {% if config.camera.index == camera.index %}selected{% endif %}>
+                                    {{ camera.name }} (Index: {{ camera.index }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm text-led-muted mb-1.5">Camera Name</label>
+                            <input type="text" name="camera_name" value="{{ config.camera.name }}" class="w-full">
+                        </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-sm font-medium mb-1">Name</label>
-                                <input type="text" name="{{ city_key }}_name" value="{{ city.name }}" 
-                                       class="w-full p-2 border rounded">
+                                <label class="block text-sm text-led-muted mb-1.5">Width</label>
+                                <input type="number" name="resolution_width"
+                                       value="{{ config.camera.resolution.width }}" class="w-full">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium mb-1">Language</label>
-                                <input type="text" name="{{ city_key }}_language" value="{{ city.language }}" 
-                                       class="w-full p-2 border rounded">
+                                <label class="block text-sm text-led-muted mb-1.5">Height</label>
+                                <input type="number" name="resolution_height"
+                                       value="{{ config.camera.resolution.height }}" class="w-full">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm text-led-muted mb-1.5">Photo Directory</label>
+                            <input type="text" name="photo_directory"
+                                   value="{{ config.camera.settings.photo_directory }}" class="w-full">
+                        </div>
+                        <button type="submit" class="btn-primary w-full">Save Camera Settings</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== WEATHER TAB ==================== -->
+        <section id="tab-weather" class="tab-panel hidden">
+            <div class="card max-w-2xl">
+                <h2 class="text-lg font-semibold text-led-amber mb-6">Weather Cities</h2>
+                <form id="form-weather" action="/api/config/weather" method="POST" class="space-y-6">
+                    {% for city_key, city in config.weather.cities.items() %}
+                    <div class="p-4 rounded-lg border border-led-border bg-led-bg">
+                        <h3 class="text-sm font-semibold text-led-cyan mb-3">{{ city_key }}</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs text-led-muted mb-1">Name</label>
+                                <input type="text" name="{{ city_key }}_name" value="{{ city.name }}" class="w-full text-sm">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium mb-1">Latitude</label>
-                                <input type="number" step="0.0001" name="{{ city_key }}_lat" value="{{ city.lat }}" 
-                                       class="w-full p-2 border rounded">
+                                <label class="block text-xs text-led-muted mb-1">Language</label>
+                                <input type="text" name="{{ city_key }}_language" value="{{ city.language }}" class="w-full text-sm">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium mb-1">Longitude</label>
-                                <input type="number" step="0.0001" name="{{ city_key }}_lon" value="{{ city.lon }}" 
-                                       class="w-full p-2 border rounded">
+                                <label class="block text-xs text-led-muted mb-1">Latitude</label>
+                                <input type="number" step="0.0001" name="{{ city_key }}_lat" value="{{ city.lat }}" class="w-full text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-led-muted mb-1">Longitude</label>
+                                <input type="number" step="0.0001" name="{{ city_key }}_lon" value="{{ city.lon }}" class="w-full text-sm">
                             </div>
                         </div>
                     </div>
                     {% endfor %}
-                    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                        Save Cities
-                    </button>
+                    <button type="submit" class="btn-primary">Save Cities</button>
                 </form>
             </div>
+        </section>
 
-            <!-- Camera Settings -->
-            <div class="bg-white p-6 rounded-lg shadow md:col-span-2">
-                <h2 class="text-xl font-semibold mb-4">Camera Settings</h2>
-                
-                <!-- Available Cameras List -->
-                <div class="mb-6">
-                    <h3 class="text-lg font-medium mb-2">Available Cameras</h3>
-                    <div class="bg-gray-50 p-4 rounded border">
-                        {% if available_cameras %}
-                            <div class="grid gap-4">
-                                {% for camera in available_cameras %}
-                                <div class="flex items-center justify-between p-2 {% if config.camera.index == camera.index %}bg-blue-50{% else %}bg-white{% endif %} rounded border">
-                                    <div>
-                                        <h4 class="font-medium">{{ camera.name }}</h4>
-                                        <p class="text-sm text-gray-600">
-                                            Backend: {{ camera.backend }}<br>
-                                            Resolution: {{ camera.resolution }}<br>
-                                            FPS: {{ camera.fps }}
-                                        </p>
-                                    </div>
-                                    <div class="flex items-center space-x-2">
-                                        <span class="text-sm font-medium">Index: {{ camera.index }}</span>
-                                        {% if config.camera.index == camera.index %}
-                                            <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">Current</span>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            <p class="text-gray-600">No cameras detected</p>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <!-- Camera Preview and Configuration -->
-                <div class="grid md:grid-cols-2 gap-6">
-                    <!-- Preview Section -->
-                    <div>
-                        <h3 class="text-lg font-medium mb-4">Camera Preview</h3>
-                        <div class="space-y-4">
-                            <div class="aspect-video bg-gray-100 rounded-lg overflow-hidden">
-                                <img id="cameraPreview" src="/api/camera/preview" alt="Camera preview" 
-                                     class="w-full h-full object-contain">
-                            </div>
-                            
-                            <!-- Preview Controls -->
-                            <div class="flex space-x-4">
-                                <button type="button" onclick="refreshPreview()" 
-                                        class="flex-1 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
-                                    Refresh Preview
-                                </button>
-                                <button type="button" onclick="takeSnapshot()" 
-                                        class="flex-1 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
-                                    Take Snapshot
-                                </button>
-                            </div>
-
-                            <!-- Latest Snapshot -->
-                            <div id="latestSnapshot" class="hidden mt-4">
-                                <h4 class="text-md font-medium mb-2">Latest Snapshot</h4>
-                                <div class="aspect-video bg-gray-100 rounded-lg overflow-hidden">
-                                    <img id="snapshotPreview" src="" alt="Latest snapshot" 
-                                         class="w-full h-full object-contain">
-                                </div>
-                                <div class="mt-2 text-sm text-gray-600">
-                                    Saved as: <span id="snapshotFilename" class="font-medium"></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Configuration Section -->
-                    <div>
-                        <h3 class="text-lg font-medium mb-4">Camera Configuration</h3>
-                        <form action="/api/config/camera" method="POST" class="space-y-4">
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Camera Index</label>
-                                <select name="camera_index" class="w-full p-2 border rounded">
-                                    {% for camera in available_cameras %}
-                                        <option value="{{ camera.index }}" {% if config.camera.index == camera.index %}selected{% endif %}>
-                                            {{ camera.name }} (Index: {{ camera.index }})
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Camera Name</label>
-                                <input type="text" name="camera_name" value="{{ config.camera.name }}" 
-                                       class="w-full p-2 border rounded">
-                            </div>
-
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium mb-1">Resolution Width</label>
-                                    <input type="number" name="resolution_width" value="{{ config.camera.resolution.width }}" 
-                                           class="w-full p-2 border rounded">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium mb-1">Resolution Height</label>
-                                    <input type="number" name="resolution_height" value="{{ config.camera.resolution.height }}" 
-                                           class="w-full p-2 border rounded">
-                                </div>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium mb-1">Photo Directory</label>
-                                <input type="text" name="photo_directory" value="{{ config.camera.settings.photo_directory }}" 
-                                       class="w-full p-2 border rounded">
-                            </div>
-
-                            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full">
-                                Save Camera Settings
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    </main>
 
     <script>
-        // Initialize ACE editor
-        let editor = ace.edit("prompt-editor");
-        editor.setTheme("ace/theme/monokai");
-        editor.getSession().setMode("ace/mode/text");
-        editor.setOption("wrap", true);
+    document.addEventListener('DOMContentLoaded', function() {
 
-        // Load current prompt template
-        fetch('/api/config/prompt')
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    editor.setValue(data.template, -1);
+        // ==================== TAB NAVIGATION ====================
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        const tabPanels = document.querySelectorAll('.tab-panel');
+
+        tabButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                tabButtons.forEach(b => {
+                    b.classList.remove('tab-active');
+                    b.classList.add('text-led-muted');
+                });
+                btn.classList.add('tab-active');
+                btn.classList.remove('text-led-muted');
+
+                const target = btn.dataset.tab;
+                tabPanels.forEach(panel => {
+                    panel.classList.toggle('hidden', panel.id !== 'tab-' + target);
+                });
+
+                // Initialize editor when prompt tab is first shown
+                if (target === 'prompt' && !window.editorInitialized) {
+                    initEditor();
                 }
-            })
-            .catch(error => showNotification('Error loading prompt template', 'error'));
-
-        // Save prompt template
-        function savePromptTemplate() {
-            const template = editor.getValue();
-            const formData = new FormData();
-            formData.append('prompt_template', template);
-
-            fetch('/api/config/prompt', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                showNotification(data.message, data.status);
-            })
-            .catch(error => showNotification('Error saving prompt template', 'error'));
-        }
-
-        // Camera functions
-// Camera functions
-function refreshPreview() {
-            const preview = document.getElementById('cameraPreview');
-            // Add timestamp to prevent caching
-            preview.src = '/api/camera/preview?' + new Date().getTime();
-        }
-
-        function takeSnapshot() {
-            fetch('/api/camera/photo', {
-                method: 'POST',
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    showNotification('Photo taken successfully');
-                    // Show the snapshot section
-                    document.getElementById('latestSnapshot').classList.remove('hidden');
-                    // Update the snapshot preview
-                    document.getElementById('snapshotPreview').src = '/photos/' + data.filepath.split('/').pop() + '?' + new Date().getTime();
-                    document.getElementById('snapshotFilename').textContent = data.filepath.split('/').pop();
-                } else {
-                    showNotification('Failed to take photo', 'error');
-                }
-            })
-            .catch(error => {
-                showNotification('Error taking photo', 'error');
-                console.error('Error:', error);
             });
+        });
+
+        // ==================== ACE EDITOR ====================
+        let editor = null;
+        window.editorInitialized = false;
+
+        function initEditor() {
+            if (window.editorInitialized) return;
+            editor = ace.edit("prompt-editor");
+            editor.setTheme("ace/theme/monokai");
+            editor.getSession().setMode("ace/mode/text");
+            editor.setOption("wrap", true);
+            editor.setFontSize(14);
+
+            fetch('/api/config/prompt')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        editor.setValue(data.template, -1);
+                    }
+                })
+                .catch(() => showNotification('Error loading prompt template', 'error'));
+
+            window.editorInitialized = true;
         }
 
-        // Form submission handlers
-        const forms = document.querySelectorAll('form');
-        forms.forEach(form => {
+        window.savePromptTemplate = function() {
+            if (!editor) return;
+            const formData = new FormData();
+            formData.append('prompt_template', editor.getValue());
+
+            fetch('/api/config/prompt', { method: 'POST', body: formData })
+                .then(r => r.json())
+                .then(data => showNotification(data.message, data.status))
+                .catch(() => showNotification('Error saving prompt template', 'error'));
+        };
+
+        // ==================== DASHBOARD STATUS ====================
+        function fetchStatus() {
+            fetch('/api/status')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status !== 'success') return;
+                    const d = data.data;
+
+                    const dot = document.getElementById('status-dot');
+                    const text = document.getElementById('status-text');
+
+                    if (d.running) {
+                        dot.className = 'inline-block w-2 h-2 rounded-full bg-led-green';
+                        text.textContent = 'Running';
+                        text.className = 'text-led-green text-sm';
+                        document.getElementById('dash-status').textContent = 'ON';
+                        document.getElementById('dash-status').className = 'stat-value glow-green';
+                    } else {
+                        dot.className = 'inline-block w-2 h-2 rounded-full bg-led-red';
+                        text.textContent = 'Stopped';
+                        text.className = 'text-led-red text-sm';
+                        document.getElementById('dash-status').textContent = 'OFF';
+                        document.getElementById('dash-status').className = 'stat-value glow-red';
+                    }
+
+                    document.getElementById('dash-host').textContent = d.host || '--';
+                    document.getElementById('dash-poems').textContent = d.poems_count || 0;
+                    document.getElementById('dash-weather').textContent = d.weather_count || 0;
+                    document.getElementById('dash-messages').textContent = d.messages_count || 0;
+                    document.getElementById('dash-queue').textContent = d.queue_remaining || 0;
+
+                    if (d.last_update) {
+                        const date = new Date(d.last_update);
+                        document.getElementById('dash-update').textContent = date.toLocaleString('fr-FR');
+                    } else {
+                        document.getElementById('dash-update').textContent = 'Never';
+                    }
+                })
+                .catch(() => {});
+        }
+
+        fetchStatus();
+        setInterval(fetchStatus, 10000);
+
+        // ==================== SEND TEST MESSAGE ====================
+        window.sendTestMessage = function() {
+            const input = document.getElementById('test-message-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            fetch('/api/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: text, duration: 10 })
+            })
+            .then(r => r.json())
+            .then(data => {
+                showNotification(data.message || 'Message sent!', data.status || 'success');
+                input.value = '';
+            })
+            .catch(() => showNotification('Error sending message', 'error'));
+        };
+
+        document.getElementById('test-message-input').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') window.sendTestMessage();
+        });
+
+        // ==================== CAMERA FUNCTIONS ====================
+        window.refreshPreview = function() {
+            const preview = document.getElementById('cameraPreview');
+            preview.src = '/api/camera/preview?' + Date.now();
+        };
+
+        window.takeSnapshot = function() {
+            fetch('/api/camera/photo', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showNotification('Photo taken successfully');
+                        document.getElementById('latestSnapshot').classList.remove('hidden');
+                        document.getElementById('snapshotPreview').src = '/photos/' + data.filepath.split('/').pop() + '?' + Date.now();
+                        document.getElementById('snapshotFilename').textContent = data.filepath.split('/').pop();
+                    } else {
+                        showNotification('Failed to take photo', 'error');
+                    }
+                })
+                .catch(() => showNotification('Error taking photo', 'error'));
+        };
+
+        // Auto refresh preview every 5 seconds when camera tab is visible
+        setInterval(function() {
+            if (!document.getElementById('tab-camera').classList.contains('hidden')) {
+                window.refreshPreview();
+            }
+        }, 5000);
+
+        // ==================== FORM HANDLERS ====================
+        document.querySelectorAll('form').forEach(form => {
             form.addEventListener('submit', function(e) {
                 e.preventDefault();
-                const formData = new FormData(form);
-                
-                fetch(form.action, {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    showNotification(data.message || 'Settings updated successfully', data.status || 'success');
-                })
-                .catch(error => {
-                    showNotification('Error updating settings', 'error');
-                });
+                const formData = new FormData(this);
+
+                fetch(this.action, { method: 'POST', body: formData })
+                    .then(r => r.json())
+                    .then(data => {
+                        showNotification(data.message || 'Settings updated', data.status || 'success');
+                        // Refresh preview after camera settings change
+                        if (this.id === 'form-camera') {
+                            setTimeout(window.refreshPreview, 1000);
+                        }
+                        // Re-render color preview after color/word changes
+                        if (this.id === 'form-colors' || this.id === 'form-words') {
+                            updateColorPreview();
+                        }
+                    })
+                    .catch(() => showNotification('Error updating settings', 'error'));
             });
         });
 
-        // Notification functions
-        function showNotification(message, type = 'success') {
-            const notification = document.getElementById('notification');
-            const messageElement = document.getElementById('notification-message');
-            
-            notification.className = `fixed top-4 right-4 max-w-sm p-4 rounded-lg shadow-lg transform transition-transform duration-300 ${
-                type === 'success' ? 'bg-green-500' : 'bg-red-500'
-            } text-white`;
-            
-            messageElement.textContent = message;
-            notification.style.transform = 'translateY(0)';
-            
-            setTimeout(hideNotification, 3000);
-        }
-
-        function hideNotification() {
-            const notification = document.getElementById('notification');
-            notification.style.transform = 'translateY(-150%)';
-        }
-
-        // Color input sync
+        // ==================== COLOR INPUT SYNC ====================
         document.querySelectorAll('input[type="color"]').forEach(colorInput => {
-            const hexInput = colorInput.parentElement.querySelector('input[type="text"]');
+            const category = colorInput.dataset.colorCategory;
+            const hexInput = document.querySelector(`input[data-hex-category="${category}"]`);
+            if (!hexInput) return;
+
             colorInput.addEventListener('input', () => {
                 hexInput.value = colorInput.value;
+                updateColorPreview();
             });
             hexInput.addEventListener('input', () => {
-                colorInput.value = hexInput.value;
+                if (/^#[0-9A-Fa-f]{6}$/.test(hexInput.value)) {
+                    colorInput.value = hexInput.value;
+                }
+                updateColorPreview();
             });
         });
 
-        // Add this to your script section
-document.querySelector('form[action="/api/config/camera"]').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const formData = new FormData(this);
-    
-    fetch(this.action, {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        showNotification(data.message, data.status);
-        if (data.status === 'success') {
-            // Force immediate preview refresh
-            setTimeout(() => {
-                refreshPreview();
-            }, 1000);  // Small delay to allow camera to initialize
-            
-            // Reset preview refresh interval
-            if (window.previewInterval) {
-                clearInterval(window.previewInterval);
-            }
-            window.previewInterval = setInterval(refreshPreview, 5000);
+        // ==================== LIVE COLOR PREVIEW ====================
+        function getColorsFromForm() {
+            const colors = {};
+            document.querySelectorAll('input[data-hex-category]').forEach(input => {
+                colors[input.dataset.hexCategory] = input.value;
+            });
+            return colors;
         }
-    })
-    .catch(error => {
-        showNotification('Error updating camera settings', 'error');
-    });
-});
 
-        // Auto refresh preview every 5 seconds
-        setInterval(refreshPreview, 5000);
+        function getWordsFromForm() {
+            const words = {};
+            document.querySelectorAll('textarea[data-words-category]').forEach(textarea => {
+                const category = textarea.dataset.wordsCategory;
+                words[category] = textarea.value.split(',').map(w => w.trim().toLowerCase()).filter(Boolean);
+            });
+            return words;
+        }
 
-        // Initial preview load
-        document.addEventListener('DOMContentLoaded', function() {
-            refreshPreview();
-        });
+        function updateColorPreview() {
+            const input = document.getElementById('preview-input');
+            const output = document.getElementById('preview-output');
+            if (!input || !output) return;
+
+            const text = input.value;
+            if (!text) {
+                output.innerHTML = '<span class="text-led-muted">Type something above...</span>';
+                return;
+            }
+
+            const colors = getColorsFromForm();
+            const wordLists = getWordsFromForm();
+
+            // Split preserving whitespace and punctuation
+            const tokens = text.split(/(\W+)/);
+            let html = '';
+
+            tokens.forEach(token => {
+                const lower = token.toLowerCase();
+                let color = colors['default'] || '#FFFFFF';
+
+                // Check word categories
+                for (const [category, words] of Object.entries(wordLists)) {
+                    if (words.includes(lower) && colors[category]) {
+                        color = colors[category];
+                        break;
+                    }
+                }
+
+                // Numbers
+                if (/^\d+$/.test(token) && colors['numbers']) {
+                    color = colors['numbers'];
+                }
+
+                html += `<span style="color:${color};text-shadow:0 0 6px ${color}40">${token.replace(/</g, '&lt;')}</span>`;
+            });
+
+            output.innerHTML = html;
+        }
+
+        const previewInput = document.getElementById('preview-input');
+        if (previewInput) {
+            previewInput.addEventListener('input', updateColorPreview);
+            // Also update when word textareas change
+            document.querySelectorAll('textarea[data-words-category]').forEach(ta => {
+                ta.addEventListener('input', updateColorPreview);
+            });
+            // Initial render
+            updateColorPreview();
+        }
+
+        // ==================== NOTIFICATIONS ====================
+        window.showNotification = function(message, type) {
+            type = type || 'success';
+            const el = document.getElementById('notification');
+            const msg = document.getElementById('notification-message');
+
+            el.className = `fixed top-4 right-4 max-w-sm p-4 rounded-lg shadow-lg transform transition-all duration-300 z-50 ${
+                type === 'success' ? 'bg-led-green/90' : 'bg-led-red/90'
+            } text-white`;
+
+            msg.textContent = message;
+            el.style.transform = 'translateY(0)';
+            el.style.opacity = '1';
+
+            clearTimeout(window._notifTimer);
+            window._notifTimer = setTimeout(hideNotification, 3000);
+        };
+
+        window.hideNotification = function() {
+            const el = document.getElementById('notification');
+            el.style.transform = 'translateY(-8rem)';
+            el.style.opacity = '0';
+        };
+
+    }); // end DOMContentLoaded
     </script>
 </body>
 </html>
