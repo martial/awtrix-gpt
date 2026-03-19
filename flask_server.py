@@ -675,7 +675,7 @@ def create_app():
                     "format": "json"
                 }
                 req = urllib.request.Request(ollama_url, data=json.dumps(payload).encode('utf-8'), headers={'Content-Type': 'application/json'})
-                with urllib.request.urlopen(req, timeout=120) as resp:
+                with urllib.request.urlopen(req, timeout=300) as resp:
                     result = json.loads(resp.read().decode('utf-8'))
                     raw_text = result.get("response", "").replace("```json", "").replace("```", "").strip()
             else:
