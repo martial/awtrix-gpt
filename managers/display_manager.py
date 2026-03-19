@@ -104,7 +104,7 @@ class AwtrixManager:
 
 
     def draw_liquid_animation(self, duration_sec: int = 5):
-        """Draw a liquid animation with a colored sky and blue waves."""
+        """Draw a liquid animation with a colored sky based on time & weather."""
         try:
             start_time = time.time()
             fps = 2
@@ -113,29 +113,53 @@ class AwtrixManager:
             import math
             import colorsys
             
-            # Get wind speed for Marseille to calculate wave height
             wind_speed = 2.0 # Default fallback
+            cloudiness = 0
+            is_raining = False
+            
             try:
                 marseille_weather = self.raw_weather.get('MARSEILLE', {})
-                if marseille_weather and 'wind_speed' in marseille_weather:
-                    wind_speed = float(marseille_weather['wind_speed'])
+                if marseille_weather:
+                    wind_speed = float(marseille_weather.get('wind_speed', 2.0))
+                    cloudiness = int(marseille_weather.get('cloudiness', 0))
+                    desc = marseille_weather.get('description', '').lower()
+                    if 'pluie' in desc or 'pioggia' in desc or 'rain' in desc:
+                        is_raining = True
             except Exception:
                 pass
                 
-            # Determine sky color based on time of day
+            # Determine sky color based on time of day and weather
             current_hour = datetime.datetime.now().hour
-            if 5 <= current_hour < 8:
-                # Sunrise: Pink/Orange
-                sky_base_hue, sky_sat, sky_val = 0.08, 0.8, 0.9
-            elif 8 <= current_hour < 18:
-                # Day: Light Blue / Cyan
-                sky_base_hue, sky_sat, sky_val = 0.55, 0.5, 0.9
-            elif 18 <= current_hour < 21:
-                # Sunset: Orange/Red
-                sky_base_hue, sky_sat, sky_val = 0.05, 0.9, 0.9
+            if is_raining:
+                # Rainy: Dark Grayish Blue
+                sky_base_hue, sky_sat, sky_val = 0.60, 0.3, 0.4
+            elif cloudiness > 70:
+                # Very Cloudy: Gray
+                sky_base_hue, sky_sat, sky_val = 0.60, 0.1, 0.5
+            elif cloudiness > 30:
+                # Partly Cloudy: Desaturated colors
+                if 5 <= current_hour < 8:
+                    sky_base_hue, sky_sat, sky_val = 0.08, 0.4, 0.7
+                elif 8 <= current_hour < 18:
+                    sky_base_hue, sky_sat, sky_val = 0.55, 0.3, 0.7
+                elif 18 <= current_hour < 21:
+                    sky_base_hue, sky_sat, sky_val = 0.05, 0.5, 0.7
+                else:
+                    sky_base_hue, sky_sat, sky_val = 0.65, 0.5, 0.3
             else:
-                # Night: Very Dark Blue
-                sky_base_hue, sky_sat, sky_val = 0.65, 0.9, 0.2
+                # Clear sky
+                if 5 <= current_hour < 8:
+                    # Sunrise: Pink/Orange
+                    sky_base_hue, sky_sat, sky_val = 0.08, 0.8, 0.9
+                elif 8 <= current_hour < 18:
+                    # Day: Light Blue / Cyan
+                    sky_base_hue, sky_sat, sky_val = 0.55, 0.5, 0.9
+                elif 18 <= current_hour < 21:
+                    # Sunset: Orange/Red
+                    sky_base_hue, sky_sat, sky_val = 0.05, 0.9, 0.9
+                else:
+                    # Night: Very Dark Blue
+                    sky_base_hue, sky_sat, sky_val = 0.65, 0.9, 0.2
             
             # Water base color is always blue (~0.6)
             water_base_hue = 0.60
@@ -183,9 +207,8 @@ class AwtrixManager:
                 t += 0.5
                 time.sleep(1.0 / fps)
                 
-            # Release the screen gracefully by sending an empty string to custom
-            requests.post(f"{self.base_url}/custom?name=liquid", json={"text": ""}, timeout=1)
-            time.sleep(0.5)
+            # Removed the {"text": ""} explicit clean-up to avoid black flicker between apps!
+            
         except Exception as e:
             self.logger.error(f"HTTP liquid error: {e}")
 
@@ -458,7 +481,8 @@ class AwtrixManager:
     def display_cycle(self):
         """Display messages sequentially from a shuffled queue for better flow"""
         if not any([self.messages, self.weather, self.news, self.suggested_activities, self.poems]):
-            self.logger.warning("No content available for display")
+            self.logger.warning("No content available for display - Showing default liquid")
+            self.draw_liquid_animation(duration_sec=10)
             return
             
         try:
