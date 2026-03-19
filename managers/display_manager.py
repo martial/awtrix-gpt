@@ -104,24 +104,16 @@ class AwtrixManager:
 
 
     def draw_liquid_animation(self, duration_sec: int = 5):
-        """Draw a liquid animation using vertical HTTP line draws (stable on 0.98 firmware)."""
+        """Draw a liquid animation with a colored sky and blue waves."""
         try:
             start_time = time.time()
             fps = 2
             t = 0.0
+            import datetime
+            import math
+            import colorsys
             
-            # Simple fallback temp
-            temperature = 20
-            try:
-                if getattr(self, 'weather', None) and len(self.weather) > 0:
-                    temp_str = self.weather[0].get('text', '')
-                    nums = [int(s) for s in temp_str.split() if s.isdigit()]
-                    if nums:
-                        temperature = nums[0]
-            except Exception:
-                pass
-                
-            # Get wind speed for Marseille to calculate wave height (swell/houle)
+            # Get wind speed for Marseille to calculate wave height
             wind_speed = 2.0 # Default fallback
             try:
                 marseille_weather = self.raw_weather.get('MARSEILLE', {})
@@ -130,32 +122,54 @@ class AwtrixManager:
             except Exception:
                 pass
                 
-            # Hue mapping: 0C -> blue (0.6), 35C -> red/orange (0.05)
-            base_hue = 0.6 - (max(min(temperature, 35), 0) / 35.0) * 0.55
+            # Determine sky color based on time of day
+            current_hour = datetime.datetime.now().hour
+            if 5 <= current_hour < 8:
+                # Sunrise: Pink/Orange
+                sky_base_hue, sky_sat, sky_val = 0.08, 0.8, 0.9
+            elif 8 <= current_hour < 18:
+                # Day: Light Blue / Cyan
+                sky_base_hue, sky_sat, sky_val = 0.55, 0.5, 0.9
+            elif 18 <= current_hour < 21:
+                # Sunset: Orange/Red
+                sky_base_hue, sky_sat, sky_val = 0.05, 0.9, 0.9
+            else:
+                # Night: Very Dark Blue
+                sky_base_hue, sky_sat, sky_val = 0.65, 0.9, 0.2
+            
+            # Water base color is always blue (~0.6)
+            water_base_hue = 0.60
             
             # Map wind speed (0 to 10+ m/s) to an amplitude multiplier (0.5 to 3.5)
             amplitude = max(0.5, min((wind_speed / 10.0) * 3.0 + 0.5, 3.5))
-            # Also increase wave frequency slightly with wind
             freq_mult = max(1.0, min(1.0 + (wind_speed / 20.0), 2.0))
             
             while time.time() - start_time < duration_sec:
                 draw_instructions = []
                 
                 for x in range(32):
-                    # Higher wind = faster and taller waves
+                    # Wave calculation
                     val = math.sin(x * 0.3 * freq_mult + t * 2.0 * freq_mult)
-                    
-                    # Base water level is 2, plus amplitude
                     wave_height = int((val + 1) * amplitude) + 2
-                    
-                    # Cap wave height to not exceed screen height (8)
                     wave_height = max(1, min(wave_height, 8))
                     
-                    hue = (base_hue + (math.sin(x * 0.1 + t) * 0.05)) % 1.0
-                    r, g, b = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
-                    hex_color = f"#{int(r*255):02X}{int(g*255):02X}{int(b*255):02X}"
+                    # Calculate sky color (with subtle horizontal gradient)
+                    s_hue = (sky_base_hue + (x * 0.002)) % 1.0
+                    sr, sg, sb = colorsys.hsv_to_rgb(s_hue, sky_sat, sky_val)
+                    sky_hex = f"#{int(sr*255):02X}{int(sg*255):02X}{int(sb*255):02X}"
                     
-                    draw_instructions.append({"dl": [x, 7, x, 8 - wave_height, hex_color]})
+                    # Calculate water color (always blue, slightly animating)
+                    w_hue = (water_base_hue + (math.sin(x * 0.1 + t) * 0.05)) % 1.0
+                    wr, wg, wb = colorsys.hsv_to_rgb(w_hue, 1.0, 1.0)
+                    water_hex = f"#{int(wr*255):02X}{int(wg*255):02X}{int(wb*255):02X}"
+                    
+                    # Draw Sky
+                    sky_end_y = 7 - wave_height
+                    if sky_end_y >= 0:
+                        draw_instructions.append({"dl": [x, 0, x, sky_end_y, sky_hex]})
+                        
+                    # Draw Water
+                    draw_instructions.append({"dl": [x, 7, x, 8 - wave_height, water_hex]})
                 
                 payload = {
                     "draw": draw_instructions
