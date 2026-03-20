@@ -97,10 +97,17 @@ class AwtrixManager:
             self.logger.error(f"Display error: {str(e)}")
 
     def draw_liquid_animation(self, duration_sec: int = 5):
-        """Draw a liquid animation with a colored sky based on time & weather."""
+        """Draw a liquid animation with a colored sky based on time & weather.
+
+        Uses a flat RGB bitmap payload (\"db\") instead of individual draw
+        commands so the ESP32 on the Ulanzi TC001 only has to parse one
+        compact array per frame.  Sky colours are precomputed once since
+        they don't change between frames.
+        """
         try:
             start_time = time.time()
-            fps = 2
+            fps = 5
+            frame_delay = 1.0 / fps
             t = 0.0
 
             wind_speed = 2.0
@@ -148,39 +155,61 @@ class AwtrixManager:
             amplitude = max(0.5, min((wind_speed / 10.0) * 3.0 + 0.5, 3.5))
             freq_mult = max(1.0, min(1.0 + (wind_speed / 20.0), 2.0))
 
+            # Precompute sky RGB per column (doesn't change between frames)
+            sky_rgb = []
+            for x in range(32):
+                s_hue = (sky_base_hue + (x * 0.002)) % 1.0
+                sr, sg, sb = colorsys.hsv_to_rgb(s_hue, sky_sat, sky_val)
+                sky_rgb.append((int(sr * 255), int(sg * 255), int(sb * 255)))
+
             while time.time() - start_time < duration_sec:
-                draw_instructions = []
+                frame_start = time.time()
+
+                # Build a flat 32x8 RGB bitmap (row-major, 768 values)
+                # pixel index = (y * 32 + x) * 3
+                bitmap = [0] * (32 * 8 * 3)
 
                 for x in range(32):
                     val = math.sin(x * 0.3 * freq_mult + t * 2.0 * freq_mult)
                     wave_height = int((val + 1) * amplitude) + 2
                     wave_height = max(1, min(wave_height, 8))
 
-                    s_hue = (sky_base_hue + (x * 0.002)) % 1.0
-                    sr, sg, sb = colorsys.hsv_to_rgb(s_hue, sky_sat, sky_val)
-                    sky_hex = f"#{int(sr*255):02X}{int(sg*255):02X}{int(sb*255):02X}"
+                    water_y_start = 8 - wave_height  # top of water column
 
+                    # Water colour (slight hue shift per column per frame)
                     w_hue = (water_base_hue + (math.sin(x * 0.1 + t) * 0.05)) % 1.0
                     wr, wg, wb = colorsys.hsv_to_rgb(w_hue, 1.0, 1.0)
-                    water_hex = f"#{int(wr*255):02X}{int(wg*255):02X}{int(wb*255):02X}"
+                    wr, wg, wb = int(wr * 255), int(wg * 255), int(wb * 255)
 
-                    sky_end_y = 7 - wave_height
-                    if sky_end_y >= 0:
-                        draw_instructions.append({"dl": [x, 0, x, sky_end_y, sky_hex]})
+                    sr, sg, sb = sky_rgb[x]
 
-                    draw_instructions.append({"dl": [x, 7, x, 8 - wave_height, water_hex]})
-
-                payload = {
-                    "draw": draw_instructions
-                }
+                    for y in range(8):
+                        idx = (y * 32 + x) * 3
+                        if y < water_y_start:
+                            bitmap[idx] = sr
+                            bitmap[idx + 1] = sg
+                            bitmap[idx + 2] = sb
+                        else:
+                            bitmap[idx] = wr
+                            bitmap[idx + 1] = wg
+                            bitmap[idx + 2] = wb
 
                 try:
-                    requests.post(f"{self.base_url}/custom?name=liquid", json=payload, timeout=0.5)
+                    requests.post(
+                        f"{self.base_url}/custom?name=liquid",
+                        json={"draw": [{"db": [0, 0, 32, 8, bitmap]}]},
+                        timeout=1.0,
+                    )
                 except Exception:
                     pass
 
-                t += 0.5
-                time.sleep(1.0 / fps)
+                t += 0.15
+
+                # Account for render + network time to maintain steady FPS
+                elapsed = time.time() - frame_start
+                sleep_time = frame_delay - elapsed
+                if sleep_time > 0:
+                    time.sleep(sleep_time)
 
         except Exception as e:
             self.logger.error(f"HTTP liquid error: {e}")
