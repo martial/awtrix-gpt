@@ -3,7 +3,7 @@ import io
 import json
 import logging
 import os
-import threading
+
 import time
 import traceback
 import urllib.request
@@ -12,6 +12,8 @@ from functools import wraps
 from typing import Optional
 
 from dotenv import load_dotenv
+
+import threading
 from flask import (Flask, jsonify, redirect, render_template, request,
                    send_file, send_from_directory, url_for)
 from google import genai

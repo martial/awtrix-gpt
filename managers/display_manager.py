@@ -1,6 +1,7 @@
 import re
 import requests
 import time
+import unicodedata
 import urllib.request
 from google import genai
 from google.genai import types
@@ -333,6 +334,8 @@ class AwtrixManager:
 
     def parse_and_highlight(self, text: str) -> List[Dict[str, str]]:
         """Parse text to highlight based on configuration"""
+        import unicodedata
+        text = unicodedata.normalize("NFKD", text).encode("ASCII", "ignore").decode("utf-8")
         fragments = []
         words = re.split(r'(\W+)', text)
 
