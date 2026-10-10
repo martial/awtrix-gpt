@@ -2,6 +2,7 @@ venv/
 .env
 prompt_template.txt
 __pycache__
-*.jpg*.bak*
+*.jpg
+*.bak*
 .bak-predeploy/
 __pycache__/
