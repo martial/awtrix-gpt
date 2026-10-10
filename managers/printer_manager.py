@@ -2,15 +2,21 @@ import logging
 import os
 from typing import Optional
 
-from thermalprinter import ThermalPrinter
 from PIL import Image
 
 from config_loader import load_config
+
+try:
+    from thermalprinter import ThermalPrinter
+except ImportError:  # library missing (dev machine, tests): the printer is simply unavailable
+    ThermalPrinter = None
 
 
 class ThermalPrinterManager:
     def __init__(self):
         """Initialize thermal printer manager"""
+        if ThermalPrinter is None:
+            raise RuntimeError("thermalprinter is not installed")
         self.logger = logging.getLogger(__name__)
         self.config = load_config()
         self.printer: Optional[ThermalPrinter] = None

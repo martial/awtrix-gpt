@@ -6,6 +6,21 @@
     <title>AWTRIX — Elisa, Marziol & Leontine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+    // Auto-attach the API key to every request from this page so the config
+    // UI keeps working once the API endpoints are protected. The key is
+    // injected server-side from the API_KEY env var.
+    (function () {
+        const API_KEY = "{{ api_key }}";
+        if (!API_KEY) return;
+        const _origFetch = window.fetch.bind(window);
+        window.fetch = function (url, opts) {
+            opts = opts || {};
+            opts.headers = Object.assign({}, opts.headers, { 'X-API-Key': API_KEY });
+            return _origFetch(url, opts);
+        };
+    })();
+    </script>
+    <script>
     tailwind.config = {
         theme: {
             extend: {

@@ -20,10 +20,10 @@ display:
   active_hours:
     end: 23
     start: 7
-  cycle_delay: 5
+  cycle_delay: 7
   debug: true
   host: 192.168.1.101
-  message_duration: 15
+  message_duration: 10
   update_interval: 1800
 printer:
   baudrate: 9600
@@ -171,6 +171,9 @@ words:
   - nebbia
 
 ai_provider: "ollama"
-ollama_host: "http://192.168.1.81:11434"
+ollama_host: "http://MacBook-Pro-de-Martial.local:11434"
 
-ollama_model: "qwen2.5"
+ollama_model: "gemma3:4b"
+ollama_num_ctx: 8192
+ollama_keep_alive: "30m"
+ollama_temperature: 0.8
