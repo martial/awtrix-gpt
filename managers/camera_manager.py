@@ -1,4 +1,3 @@
-import cv2
 import logging
 import os
 from datetime import datetime
@@ -8,10 +7,17 @@ import time
 
 from config_loader import load_config
 
+try:
+    import cv2
+except ImportError:  # opencv missing (dev machine, tests): the camera is simply unavailable
+    cv2 = None
+
 
 class CameraManager:
     def __init__(self):
         """Initialize camera manager"""
+        if cv2 is None:
+            raise RuntimeError("opencv-python (cv2) is not installed")
         self.logger = logging.getLogger(__name__)
         self.config = load_config()
 
